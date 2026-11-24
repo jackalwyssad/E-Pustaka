@@ -1,0 +1,415 @@
+package com.example.perpustakaan2.ui
+
+import android.content.Intent
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import coil.load
+import com.example.perpustakaan2.R
+import com.example.perpustakaan2.adapter.ReviewAdapter
+import com.example.perpustakaan2.data.model.Book
+import com.example.perpustakaan2.data.model.Loan
+import com.example.perpustakaan2.data.model.QueueEntry
+import com.example.perpustakaan2.data.model.Review
+import com.example.perpustakaan2.data.repository.AuthRepository
+import com.example.perpustakaan2.data.repository.BookRepository
+import com.example.perpustakaan2.data.repository.LoanRepository
+import com.example.perpustakaan2.data.repository.QueueRepository
+import com.example.perpustakaan2.databinding.ActivityBookDetailBinding
+import com.example.perpustakaan2.databinding.DialogReviewBinding
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+
+class BookDetailActivity : AppCompatActivity() {
+
+    companion object {
+        const val EXTRA_BOOK_ID = "extra_book_id"
+    }
+
+    private lateinit var binding: ActivityBookDetailBinding
+
+    private val authRepository = AuthRepository()
+    private val bookRepository = BookRepository()
+    private val loanRepository = LoanRepository()
+    private val queueRepository = QueueRepository()
+
+    private var bookId: String = ""
+    private var currentBook: Book? = null
+    private var activeLoan: Loan? = null
+    private var activeQueue: QueueEntry? = null
+    private var isFavorite: Boolean = false
+
+    private lateinit var reviewAdapter: ReviewAdapter
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityBookDetailBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        bookId = intent.getStringExtra(EXTRA_BOOK_ID) ?: ""
+        if (bookId.isEmpty()) {
+            Toast.makeText(this, "Buku tidak ditemukan", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+
+        setupToolbar()
+        setupReviewsRecyclerView()
+        setupButtons()
+        observeData()
+    }
+
+    private fun setupToolbar() {
+        binding.toolbarDetail.setNavigationOnClickListener { finish() }
+
+        binding.btnFavorite.setOnClickListener {
+            val uid = authRepository.currentUser?.uid
+            if (uid == null) {
+                Toast.makeText(this, "Silakan login untuk menyimpan favorit", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            lifecycleScope.launch {
+                bookRepository.toggleFavorite(uid, bookId)
+            }
+        }
+    }
+
+    private fun setupReviewsRecyclerView() {
+        val currentUid = authRepository.currentUser?.uid ?: ""
+        reviewAdapter = ReviewAdapter(
+            currentUserId = currentUid,
+            onEditClick = { review -> showReviewDialog(review) },
+            onDeleteClick = { review -> showDeleteReviewDialog(review) }
+        )
+        binding.rvReviews.apply {
+            layoutManager = LinearLayoutManager(this@BookDetailActivity)
+            adapter = reviewAdapter
+            isNestedScrollingEnabled = false
+        }
+    }
+
+    private fun setupButtons() {
+        binding.btnContinueReading.setOnClickListener {
+            val loan = activeLoan ?: return@setOnClickListener
+            val pdfTarget = if (loan.urlPdf.isNotBlank()) loan.urlPdf else (currentBook?.urlPdf ?: "")
+            openPdfReader(pdfTarget, isPreview = false, loanId = loan.id, startPage = loan.halamanTerakhir)
+        }
+
+        binding.btnReadPreview.setOnClickListener {
+            val book = currentBook ?: return@setOnClickListener
+            openPdfReader(book.urlPdf, isPreview = true, maxPreviewPercent = 20, startPage = 1)
+        }
+
+        binding.btnQuickSession.setOnClickListener {
+            val uid = authRepository.currentUser?.uid
+            if (uid == null) {
+                Toast.makeText(this, "Silakan login untuk meminjam buku kilat", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val book = currentBook ?: return@setOnClickListener
+            lifecycleScope.launch {
+                val res = loanRepository.startQuickSession(uid, book)
+                res.fold(
+                    onSuccess = {
+                        Toast.makeText(this@BookDetailActivity, "Sesi Baca Kilat (2 Jam) Dimulai!", Toast.LENGTH_SHORT).show()
+                        refreshBook()
+                    },
+                    onFailure = { e ->
+                        Toast.makeText(this@BookDetailActivity, "Gagal: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
+                )
+            }
+        }
+
+        binding.btnBorrowBook.setOnClickListener {
+            val uid = authRepository.currentUser?.uid
+            if (uid == null) {
+                Toast.makeText(this, "Silakan login untuk meminjam buku", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val book = currentBook ?: return@setOnClickListener
+
+            if (book.stokTersedia > 0) {
+                lifecycleScope.launch {
+                    val res = loanRepository.borrowBook(uid, book)
+                    res.fold(
+                        onSuccess = {
+                            Toast.makeText(this@BookDetailActivity, "Buku berhasil dipinjam selama 7 hari!", Toast.LENGTH_SHORT).show()
+                            refreshBook()
+                        },
+                        onFailure = { e ->
+                            Toast.makeText(this@BookDetailActivity, "Gagal: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                    )
+                }
+            } else {
+                lifecycleScope.launch {
+                    val res = queueRepository.joinQueue(uid, book)
+                    res.fold(
+                        onSuccess = {
+                            Toast.makeText(this@BookDetailActivity, "Anda telah masuk dalam antrian peminjaman", Toast.LENGTH_SHORT).show()
+                            refreshBook()
+                        },
+                        onFailure = { e ->
+                            Toast.makeText(this@BookDetailActivity, "Gagal: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                    )
+                }
+            }
+        }
+
+        binding.btnCancelQueueFromDetail.setOnClickListener {
+            val queue = activeQueue ?: return@setOnClickListener
+            lifecycleScope.launch {
+                val res = queueRepository.cancelQueue(queue.id, queue.bookId)
+                res.fold(
+                    onSuccess = {
+                        Toast.makeText(this@BookDetailActivity, "Antrian berhasil dibatalkan", Toast.LENGTH_SHORT).show()
+                        refreshBook()
+                    },
+                    onFailure = { e ->
+                        Toast.makeText(this@BookDetailActivity, "Gagal: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+        }
+
+        binding.btnAddReview.setOnClickListener {
+            val uid = authRepository.currentUser?.uid
+            if (uid == null) {
+                Toast.makeText(this, "Silakan login untuk menulis ulasan", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            showReviewDialog(null)
+        }
+    }
+
+    private fun refreshBook() {
+        lifecycleScope.launch {
+            val res = bookRepository.getBookById(bookId)
+            res.getOrNull()?.let {
+                currentBook = it
+                bindBook(it)
+            }
+        }
+    }
+
+    private fun observeData() {
+        val currentUid = authRepository.currentUser?.uid
+
+        refreshBook()
+
+        lifecycleScope.launch {
+            bookRepository.getReviewsFlow(bookId).collectLatest { reviews ->
+                reviewAdapter.submitList(reviews)
+                binding.tvEmptyReviews.visibility = if (reviews.isEmpty()) View.VISIBLE else View.GONE
+                binding.tvReviewSectionTitle.text = "Ulasan Pembaca (${reviews.size})"
+            }
+        }
+
+        if (currentUid != null) {
+            lifecycleScope.launch {
+                loanRepository.getActiveLoansFlow(currentUid).collectLatest { loans ->
+                    activeLoan = loans.find { it.bookId == bookId }
+                    updateLoanAndQueueUI()
+                }
+            }
+
+            lifecycleScope.launch {
+                queueRepository.getUserQueuesFlow(currentUid).collectLatest { queues ->
+                    activeQueue = queues.find { it.bookId == bookId }
+                    updateLoanAndQueueUI()
+                }
+            }
+
+            lifecycleScope.launch {
+                bookRepository.isFavoriteFlow(currentUid, bookId).collectLatest { fav ->
+                    isFavorite = fav
+                    binding.btnFavorite.setImageResource(
+                        if (isFavorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border
+                    )
+                    binding.btnFavorite.imageTintList = getColorStateList(
+                        if (isFavorite) R.color.error else R.color.text_primary
+                    )
+                }
+            }
+        }
+    }
+
+    private fun bindBook(book: Book) {
+        binding.tvDetailTitle.text = book.judul
+        binding.tvDetailAuthor.text = book.penulis
+        binding.tvDetailCategory.text = book.namaKategori
+        binding.tvDetailRating.text = "★ ${book.rataRating}"
+        binding.tvDetailRatingCount.text = "(${book.jumlahRating} Ulasan)"
+
+        binding.tvMetricPages.text = "${book.jumlahHalaman}\nHalaman"
+        binding.tvMetricBorrowers.text = "${book.jumlahPeminjam}\nPeminjam"
+        binding.tvMetricStock.text = "${book.stokTersedia}/${book.stokMaksimal}\nTersedia"
+        binding.tvMetricKilat.text = "${book.stokSesiKilat}\nSlot Kilat"
+
+        binding.tvStockDetailStatus.text = "Ketersediaan Stok Fisik / Lisensi (${book.stokTersedia} dari ${book.stokMaksimal} tersedia)"
+        val progress = if (book.stokMaksimal > 0) (book.stokTersedia * 100 / book.stokMaksimal) else 0
+        binding.pbStock.progress = progress
+
+        binding.tvDetailSynopsis.text = book.sinopsis.ifBlank { "Tidak ada sinopsis." }
+
+        if (book.urlSampul.isNotBlank()) {
+            binding.ivDetailCover.load(book.urlSampul) {
+                crossfade(true)
+                placeholder(R.drawable.ic_book)
+                error(R.drawable.ic_book)
+            }
+        } else {
+            binding.ivDetailCover.setImageResource(R.drawable.ic_book)
+        }
+
+        updateLoanAndQueueUI()
+    }
+
+    private fun updateLoanAndQueueUI() {
+        val book = currentBook ?: return
+
+        if (activeLoan != null) {
+            binding.btnContinueReading.visibility = View.VISIBLE
+            binding.cardQueueActive.visibility = View.GONE
+            binding.btnBorrowBook.visibility = View.GONE
+            binding.btnQuickSession.visibility = View.GONE
+            return
+        }
+
+        binding.btnContinueReading.visibility = View.GONE
+
+        if (activeQueue != null) {
+            binding.cardQueueActive.visibility = View.VISIBLE
+            binding.tvUserQueuePosition.text = "Nomor Urut Antrian Anda: #${activeQueue?.nomorUrut}"
+            binding.btnBorrowBook.visibility = View.GONE
+            binding.btnQuickSession.visibility = View.GONE
+            return
+        }
+
+        binding.cardQueueActive.visibility = View.GONE
+        binding.btnBorrowBook.visibility = View.VISIBLE
+        binding.btnQuickSession.visibility = View.VISIBLE
+
+        if (book.stokTersedia > 0) {
+            binding.btnBorrowBook.text = "Pinjam Buku (7 Hari)"
+            binding.btnBorrowBook.setBackgroundColor(getColor(R.color.primary))
+            binding.tvQueueNotice.visibility = View.GONE
+        } else {
+            binding.btnBorrowBook.text = "Masuk Antrian Buku"
+            binding.btnBorrowBook.setBackgroundColor(getColor(R.color.secondary))
+            binding.tvQueueNotice.visibility = View.VISIBLE
+            binding.tvQueueNotice.text = "Buku sedang dipinjam seluruhnya. Masuk antrian agar diprioritaskan saat buku dikembalikan!"
+        }
+
+        if (book.stokSesiKilat > 0) {
+            binding.btnQuickSession.visibility = View.VISIBLE
+            binding.tvKilatNotice.visibility = View.GONE
+        } else {
+            binding.btnQuickSession.visibility = View.GONE
+            binding.tvKilatNotice.visibility = View.VISIBLE
+            binding.tvKilatNotice.text = "Slot baca kilat 2 jam saat ini sedang penuh."
+        }
+    }
+
+    private fun openPdfReader(pdfUrl: String, isPreview: Boolean, maxPreviewPercent: Int = 100, loanId: String = "", startPage: Int = 1) {
+        val intent = Intent(this, PdfReaderActivity::class.java).apply {
+            putExtra(PdfReaderActivity.EXTRA_BOOK_ID, bookId)
+            putExtra(PdfReaderActivity.EXTRA_BOOK_TITLE, currentBook?.judul ?: "Buku")
+            putExtra(PdfReaderActivity.EXTRA_PDF_URL, pdfUrl)
+            putExtra(PdfReaderActivity.EXTRA_IS_PREVIEW, isPreview)
+            putExtra(PdfReaderActivity.EXTRA_MAX_PREVIEW_PERCENT, maxPreviewPercent)
+            putExtra(PdfReaderActivity.EXTRA_LOAN_ID, loanId)
+            putExtra(PdfReaderActivity.EXTRA_START_PAGE, startPage)
+        }
+        startActivity(intent)
+    }
+
+    private fun showReviewDialog(existingReview: Review?) {
+        val dialogBinding = DialogReviewBinding.inflate(LayoutInflater.from(this))
+        val isEdit = existingReview != null
+
+        if (isEdit) {
+            dialogBinding.tvDialogReviewTitle.text = "Edit Ulasan Anda"
+            dialogBinding.rbReviewRating.rating = existingReview!!.rating.toFloat()
+            dialogBinding.etReviewText.setText(existingReview.ulasan)
+        }
+
+        AlertDialog.Builder(this)
+            .setView(dialogBinding.root)
+            .setPositiveButton(if (isEdit) "Perbarui" else "Kirim Ulasan") { _, _ ->
+                val rating = dialogBinding.rbReviewRating.rating.toInt().coerceIn(1, 5)
+                val comment = dialogBinding.etReviewText.text.toString().trim()
+                if (comment.isEmpty()) {
+                    Toast.makeText(this, "Harap tulis ulasan Anda", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                val currentUid = authRepository.currentUser?.uid ?: return@setPositiveButton
+
+                lifecycleScope.launch {
+                    val res = if (isEdit) {
+                        bookRepository.updateReview(
+                            reviewId = existingReview!!.id,
+                            bookId = bookId,
+                            userId = currentUid,
+                            newRating = rating,
+                            newUlasan = comment
+                        )
+                    } else {
+                        val user = authRepository.getUserProfile(currentUid).getOrNull()
+                        val review = Review(
+                            userId = currentUid,
+                            bookId = bookId,
+                            namaUser = user?.nama ?: "Anggota",
+                            fotoProfil = user?.fotoProfil,
+                            rating = rating,
+                            ulasan = comment
+                        )
+                        bookRepository.addReview(review)
+                    }
+
+                    res.fold(
+                        onSuccess = {
+                            Toast.makeText(this@BookDetailActivity, if (isEdit) "Ulasan diperbarui" else "Ulasan berhasil dikirim", Toast.LENGTH_SHORT).show()
+                            refreshBook()
+                        },
+                        onFailure = { e ->
+                            Toast.makeText(this@BookDetailActivity, "Gagal: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                    )
+                }
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun showDeleteReviewDialog(review: Review) {
+        val currentUid = authRepository.currentUser?.uid ?: return
+        AlertDialog.Builder(this)
+            .setTitle("Hapus Ulasan")
+            .setMessage("Apakah Anda yakin ingin menghapus ulasan Anda?")
+            .setPositiveButton("Hapus") { _, _ ->
+                lifecycleScope.launch {
+                    val res = bookRepository.deleteReview(review.id, bookId, currentUid)
+                    res.fold(
+                        onSuccess = {
+                            Toast.makeText(this@BookDetailActivity, "Ulasan berhasil dihapus", Toast.LENGTH_SHORT).show()
+                            refreshBook()
+                        },
+                        onFailure = { e ->
+                            Toast.makeText(this@BookDetailActivity, "Gagal: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+}

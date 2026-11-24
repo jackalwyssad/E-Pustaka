@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand Primary: Forest / Library Emerald Green -->
+    <color name="primary">#1B5E20</color>
+    <color name="primary_dark">#0E3D13</color>
+    <color name="primary_light">#E8F5E9</color>
+    <color name="primary_container">#C8E6C9</color>
+    <color name="on_primary">#FFFFFF</color>
+
+    <!-- Secondary: Academic Jade / Earth Olive -->
+    <color name="secondary">#2E7D32</color>
+    <color name="secondary_dark">#1B5E20</color>
+    <color name="secondary_container">#D8EED9</color>
+    <color name="on_secondary">#FFFFFF</color>
+
+    <!-- Warm Accents -->
+    <color name="gold_star">#FFB300</color>
+    <color name="gold_star_light">#FFF8E1</color>
+    <color name="streak_fire">#FF6D00</color>
+    <color name="streak_fire_light">#FFF3E0</color>
+
+    <!-- Backgrounds & Surfaces (Warm Natural Paper Feel) -->
+    <color name="background">#F8FAF6</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_variant">#EDF3EB</color>
+    <color name="surface_card">#FFFFFF</color>
+    <color name="outline">#DFE6DD</color>
+
+    <!-- Typography -->
+    <color name="text_primary">#142416</color>
+    <color name="text_secondary">#4D614F</color>
+    <color name="text_on_primary">#FFFFFF</color>
+
+    <!-- Functional States -->
+    <color name="error">#C62828</color>
+    <color name="error_container">#FFEBEE</color>
+    <color name="success">#2E7D32</color>
+    <color name="success_container">#E8F5E9</color>
+
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>

@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">E-Pustaka</string>
+    <string name="tagline">Perpustakaan Digital Tanpa Batas</string>
+    <string name="tab_home">Beranda</string>
+    <string name="tab_search">Pencarian</string>
+    <string name="tab_bookshelf">Rak Saya</string>
+    <string name="tab_profile">Profil</string>
+</resources>

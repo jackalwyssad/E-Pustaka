@@ -3,46 +3,48 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:background="@color/surface"
     android:orientation="vertical"
-    android:padding="20dp">
+    android:padding="24dp">
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Pilih Foto Profil"
         android:textColor="@color/text_primary"
-        android:textSize="18sp"
+        android:textSize="19sp"
         android:textStyle="bold" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="6dp"
+        android:lineSpacingExtra="2dp"
         android:text="Gunakan foto dari galeri HP atau hapus foto saat ini:"
         android:textColor="@color/text_secondary"
-        android:textSize="12sp" />
+        android:textSize="13sp" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnPickFromGallery"
+        style="@style/Widget.Epustaka.Button.Primary"
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:layout_marginTop="16dp"
+        android:layout_height="52dp"
+        android:layout_marginTop="18dp"
         android:text="Pilih dari Galeri HP (Gratis)"
         android:textSize="14sp"
-        android:textStyle="bold"
-        app:cornerRadius="10dp"
+        app:cornerRadius="12dp"
         app:icon="@drawable/ic_camera" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnRemovePhoto"
-        style="@style/Widget.Material3.Button.OutlinedButton"
+        style="@style/Widget.Epustaka.Button.Outlined"
         android:layout_width="match_parent"
         android:layout_height="48dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="10dp"
         android:text="Hapus Foto Profil Saat Ini"
         android:textColor="@color/error"
         android:textSize="13sp"
-        app:cornerRadius="10dp"
+        app:cornerRadius="12dp"
         app:icon="@drawable/ic_delete"
         app:iconTint="@color/error"
         app:strokeColor="@color/error" />

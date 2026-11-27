@@ -3,8 +3,8 @@
     <!-- Brand Primary: Forest / Library Emerald Green -->
     <color name="primary">#1B5E20</color>
     <color name="primary_dark">#0E3D13</color>
-    <color name="primary_light">#E8F5E9</color>
-    <color name="primary_container">#C8E6C9</color>
+    <color name="primary_light">#EAF4EB</color>
+    <color name="primary_container">#CBE6CE</color>
     <color name="on_primary">#FFFFFF</color>
 
     <!-- Secondary: Academic Jade / Earth Olive -->
@@ -14,26 +14,28 @@
     <color name="on_secondary">#FFFFFF</color>
 
     <!-- Warm Accents -->
-    <color name="gold_star">#FFB300</color>
-    <color name="gold_star_light">#FFF8E1</color>
-    <color name="streak_fire">#FF6D00</color>
-    <color name="streak_fire_light">#FFF3E0</color>
+    <color name="gold_star">#F59E0B</color>
+    <color name="gold_star_light">#FEF7E0</color>
+    <color name="streak_fire">#EA580C</color>
+    <color name="streak_fire_light">#FFF4ED</color>
 
     <!-- Backgrounds & Surfaces (Warm Natural Paper Feel) -->
-    <color name="background">#F8FAF6</color>
+    <color name="background">#F6F8F5</color>
     <color name="surface">#FFFFFF</color>
-    <color name="surface_variant">#EDF3EB</color>
+    <color name="surface_variant">#EDF3EC</color>
     <color name="surface_card">#FFFFFF</color>
-    <color name="outline">#DFE6DD</color>
+    <color name="outline">#DCE4DA</color>
+    <color name="outline_variant">#EAEFE8</color>
 
     <!-- Typography -->
-    <color name="text_primary">#142416</color>
-    <color name="text_secondary">#4D614F</color>
+    <color name="text_primary">#132115</color>
+    <color name="text_secondary">#4E6050</color>
+    <color name="text_tertiary">#738575</color>
     <color name="text_on_primary">#FFFFFF</color>
 
     <!-- Functional States -->
-    <color name="error">#C62828</color>
-    <color name="error_container">#FFEBEE</color>
+    <color name="error">#BA1A1A</color>
+    <color name="error_container">#FFDAD6</color>
     <color name="success">#2E7D32</color>
     <color name="success_container">#E8F5E9</color>
 

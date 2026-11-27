@@ -23,6 +23,8 @@ import com.example.perpustakaan2.data.repository.QueueRepository
 import com.example.perpustakaan2.databinding.ActivityBookDetailBinding
 import com.example.perpustakaan2.databinding.DialogReviewBinding
 import com.example.perpustakaan2.util.Constants
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -44,6 +46,7 @@ class BookDetailActivity : AppCompatActivity() {
     private var activeLoan: Loan? = null
     private var activeQueue: QueueEntry? = null
     private var isFavorite: Boolean = false
+    private var bookDeletedListener: ListenerRegistration? = null
 
     private lateinit var reviewAdapter: ReviewAdapter
 
@@ -253,6 +256,19 @@ class BookDetailActivity : AppCompatActivity() {
         val currentUid = authRepository.currentUser?.uid
 
         refreshBook()
+
+        // Pantau penghapusan buku secara real-time agar halaman detail ikut tertutup
+        // (termasuk saat pengguna sedang membaca di PdfReaderActivity di atasnya)
+        bookDeletedListener = FirebaseFirestore.getInstance()
+            .collection(Constants.COLLECTION_BOOKS)
+            .document(bookId)
+            .addSnapshotListener { snapshot, error ->
+                if (error == null && snapshot != null && !snapshot.exists()) {
+                    if (!isFinishing && !isDestroyed) {
+                        finish()
+                    }
+                }
+            }
 
         lifecycleScope.launch {
             bookRepository.getReviewsFlow(bookId).collectLatest { reviews ->
@@ -498,5 +514,16 @@ class BookDetailActivity : AppCompatActivity() {
             }
             .setNegativeButton("Batal", null)
             .show()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshBook()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        bookDeletedListener?.remove()
+        bookDeletedListener = null
     }
 }

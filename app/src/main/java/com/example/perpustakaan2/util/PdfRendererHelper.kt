@@ -37,6 +37,15 @@ class PdfRendererHelper(private val context: Context) {
                     pdfRenderer = PdfRenderer(fileDescriptor!!)
                     pageCount = pdfRenderer?.pageCount ?: 0
                     return@withContext Result.success(pageCount)
+                } else {
+                    // Berkas fisik hanya ada di perangkat pengunggah
+                    val tempMissing = File.createTempFile("epustaka_missing_", ".dat", context.cacheDir)
+                    tempPdfFile = tempMissing
+                    createLocalDeviceNoticePdf(tempMissing)
+                    fileDescriptor = ParcelFileDescriptor.open(tempMissing, ParcelFileDescriptor.MODE_READ_ONLY)
+                    pdfRenderer = PdfRenderer(fileDescriptor!!)
+                    pageCount = pdfRenderer?.pageCount ?: 1
+                    return@withContext Result.success(pageCount)
                 }
             }
 
@@ -150,6 +159,39 @@ class PdfRendererHelper(private val context: Context) {
         canvas.drawText("• Pencegahan cetak dan tangkapan layar otomatis aktif.", 50f, 220f, paintBody)
         canvas.drawText("• Sesi membaca tercatat secara real-time di sistem perpustakaan.", 50f, 250f, paintBody)
         canvas.drawText("Selamat membaca buku pilihan Anda!", 40f, 300f, paintBody)
+
+        document.finishPage(page)
+        FileOutputStream(targetFile).use { out ->
+            document.writeTo(out)
+        }
+        document.close()
+    }
+
+    private fun createLocalDeviceNoticePdf(targetFile: File) {
+        val document = PdfDocument()
+        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
+        val page = document.startPage(pageInfo)
+        val canvas = page.canvas
+
+        val paintTitle = Paint().apply {
+            color = Color.rgb(180, 40, 40)
+            textSize = 20f
+            isAntiAlias = true
+            isFakeBoldText = true
+        }
+
+        val paintBody = Paint().apply {
+            color = Color.DKGRAY
+            textSize = 13f
+            isAntiAlias = true
+        }
+
+        canvas.drawText("Pemberitahuan Berkas Lokal", 40f, 80f, paintTitle)
+        canvas.drawText("File PDF ini disimpan secara offline di penyimpanan perangkat pengunggah aslinya,", 40f, 120f, paintBody)
+        canvas.drawText("sehingga belum tersinkronisasi ke server Cloud Storage.", 40f, 140f, paintBody)
+        canvas.drawText("Solusi:", 40f, 180f, paintTitle)
+        canvas.drawText("1. Edit buku melalui menu admin dan gunakan fitur unggah Cloud Storage baru,", 50f, 210f, paintBody)
+        canvas.drawText("2. Atau masukkan tautan/URL PDF online langsung (https://).", 50f, 235f, paintBody)
 
         document.finishPage(page)
         FileOutputStream(targetFile).use { out ->

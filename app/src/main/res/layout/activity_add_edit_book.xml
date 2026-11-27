@@ -98,13 +98,44 @@
                 </RelativeLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Upload Progress Indicator -->
+            <LinearLayout
+                android:id="@+id/layoutUploadProgress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_chip"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="12dp"
+                android:visibility="gone">
+
+                <ProgressBar
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:indeterminate="true" />
+
+                <TextView
+                    android:id="@+id/tvUploadProgress"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:text="Mengunggah berkas ke Cloud Storage..."
+                    android:textColor="@color/primary"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
             <!-- URL Sampul Alternatif -->
             <com.google.android.material.textfield.TextInputLayout
                 style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Atau URL Gambar Sampul Web"
+                android:hint="Atau URL Gambar Sampul Web (https://)"
+                app:helperText="File lokal dari HP otomatis diunggah ke Cloud agar terlihat di HP lain"
+                app:helperTextEnabled="true"
                 app:boxCornerRadiusBottomEnd="10dp"
                 app:boxCornerRadiusBottomStart="10dp"
                 app:boxCornerRadiusTopEnd="10dp"
@@ -196,7 +227,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Atau URL File PDF Web"
+                android:hint="Atau URL File PDF Web (https://)"
+                app:helperText="File PDF dari HP otomatis diunggah ke Cloud agar bisa dibaca di HP lain"
+                app:helperTextEnabled="true"
                 app:boxCornerRadiusBottomEnd="10dp"
                 app:boxCornerRadiusBottomStart="10dp"
                 app:boxCornerRadiusTopEnd="10dp"

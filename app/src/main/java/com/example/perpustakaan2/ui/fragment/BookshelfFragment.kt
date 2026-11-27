@@ -65,6 +65,8 @@ class BookshelfFragment : Fragment() {
                     putExtra(PdfReaderActivity.EXTRA_PDF_URL, loan.urlPdf)
                     putExtra(PdfReaderActivity.EXTRA_LOAN_ID, loan.id)
                     putExtra(PdfReaderActivity.EXTRA_START_PAGE, loan.halamanTerakhir)
+                    putExtra(PdfReaderActivity.EXTRA_IS_KILAT, loan.tipe == com.example.perpustakaan2.util.Constants.TIPE_KILAT)
+                    putExtra(PdfReaderActivity.EXTRA_DUE_DATE, loan.tanggalJatuhTempo)
                 }
                 startActivity(intent)
             },

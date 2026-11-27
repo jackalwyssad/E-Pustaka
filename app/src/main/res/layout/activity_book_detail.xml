@@ -349,6 +349,23 @@
                     app:cornerRadius="12dp"
                     app:icon="@drawable/ic_book" />
 
+                <!-- Return Book / End Quick Session Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnReturnBookDetail"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="8dp"
+                    android:text="Kembalikan Buku / Akhiri Sesi"
+                    android:textColor="@color/error"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    app:cornerRadius="12dp"
+                    app:icon="@drawable/ic_history"
+                    app:iconTint="@color/error"
+                    app:strokeColor="@color/error" />
+
                 <!-- In-Queue Warning / Cancel -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cardQueueActive"

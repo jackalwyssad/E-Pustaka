@@ -22,6 +22,7 @@ import com.example.perpustakaan2.data.repository.LoanRepository
 import com.example.perpustakaan2.data.repository.QueueRepository
 import com.example.perpustakaan2.databinding.ActivityBookDetailBinding
 import com.example.perpustakaan2.databinding.DialogReviewBinding
+import com.example.perpustakaan2.util.Constants
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -97,7 +98,51 @@ class BookDetailActivity : AppCompatActivity() {
         binding.btnContinueReading.setOnClickListener {
             val loan = activeLoan ?: return@setOnClickListener
             val pdfTarget = if (loan.urlPdf.isNotBlank()) loan.urlPdf else (currentBook?.urlPdf ?: "")
-            openPdfReader(pdfTarget, isPreview = false, loanId = loan.id, startPage = loan.halamanTerakhir)
+            openPdfReader(
+                pdfUrl = pdfTarget,
+                isPreview = false,
+                loanId = loan.id,
+                startPage = loan.halamanTerakhir,
+                isKilat = loan.tipe == Constants.TIPE_KILAT,
+                dueDate = loan.tanggalJatuhTempo
+            )
+        }
+
+        binding.btnReturnBookDetail.setOnClickListener {
+            val loan = activeLoan ?: return@setOnClickListener
+            val isKilat = loan.tipe == Constants.TIPE_KILAT
+            val title = if (isKilat) "Akhiri Sesi Kilat" else "Kembalikan Buku"
+            val message = if (isKilat) {
+                "Apakah Anda ingin mengakhiri Sesi Baca Kilat untuk buku \"${loan.judulBuku}\" sekarang? Slot kilat akan dikembalikan."
+            } else {
+                "Apakah Anda yakin ingin mengembalikan buku \"${loan.judulBuku}\"?"
+            }
+
+            AlertDialog.Builder(this)
+                .setTitle(title)
+                .setMessage(message)
+                .setPositiveButton(if (isKilat) "Akhiri Sesi" else "Kembalikan") { _, _ ->
+                    lifecycleScope.launch {
+                        val res = loanRepository.returnBook(loan.id)
+                        res.fold(
+                            onSuccess = {
+                                Toast.makeText(
+                                    this@BookDetailActivity,
+                                    if (isKilat) "Sesi kilat telah diakhiri." else "Buku berhasil dikembalikan.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                activeLoan = null
+                                refreshBook()
+                                updateLoanAndQueueUI()
+                            },
+                            onFailure = { e ->
+                                Toast.makeText(this@BookDetailActivity, "Gagal mengembalikan buku: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                }
+                .setNegativeButton("Batal", null)
+                .show()
         }
 
         binding.btnReadPreview.setOnClickListener {
@@ -276,13 +321,40 @@ class BookDetailActivity : AppCompatActivity() {
         val book = currentBook ?: return
 
         if (activeLoan != null) {
+            val loan = activeLoan!!
+            val now = System.currentTimeMillis()
+
+            // Jika sesi kilat telah lewat 2 jam, otomatis kembalikan
+            if (loan.tipe == Constants.TIPE_KILAT && loan.tanggalJatuhTempo in 1..now) {
+                lifecycleScope.launch {
+                    loanRepository.returnBook(loan.id)
+                    activeLoan = null
+                    refreshBook()
+                }
+                return
+            }
+
             binding.btnContinueReading.visibility = View.VISIBLE
+            binding.btnReturnBookDetail.visibility = View.VISIBLE
+
+            if (loan.tipe == Constants.TIPE_KILAT) {
+                val remainingMinutes = ((loan.tanggalJatuhTempo - now) / 60000).coerceAtLeast(0)
+                binding.btnContinueReading.text = "Lanjut Baca Kilat (Sisa ${remainingMinutes} mnt)"
+                binding.btnReturnBookDetail.text = "Akhiri Sesi Kilat Sekarang"
+            } else {
+                binding.btnContinueReading.text = "Lanjut Membaca (Hal ${loan.halamanTerakhir})"
+                binding.btnReturnBookDetail.text = "Kembalikan Buku"
+            }
+
             binding.cardQueueActive.visibility = View.GONE
             binding.btnBorrowBook.visibility = View.GONE
             binding.btnQuickSession.visibility = View.GONE
+            binding.tvQueueNotice.visibility = View.GONE
+            binding.tvKilatNotice.visibility = View.GONE
             return
         }
 
+        binding.btnReturnBookDetail.visibility = View.GONE
         binding.btnContinueReading.visibility = View.GONE
 
         if (activeQueue != null) {
@@ -318,7 +390,15 @@ class BookDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun openPdfReader(pdfUrl: String, isPreview: Boolean, maxPreviewPercent: Int = 100, loanId: String = "", startPage: Int = 1) {
+    private fun openPdfReader(
+        pdfUrl: String,
+        isPreview: Boolean,
+        maxPreviewPercent: Int = 100,
+        loanId: String = "",
+        startPage: Int = 1,
+        isKilat: Boolean = false,
+        dueDate: Long = 0L
+    ) {
         val intent = Intent(this, PdfReaderActivity::class.java).apply {
             putExtra(PdfReaderActivity.EXTRA_BOOK_ID, bookId)
             putExtra(PdfReaderActivity.EXTRA_BOOK_TITLE, currentBook?.judul ?: "Buku")
@@ -327,6 +407,8 @@ class BookDetailActivity : AppCompatActivity() {
             putExtra(PdfReaderActivity.EXTRA_MAX_PREVIEW_PERCENT, maxPreviewPercent)
             putExtra(PdfReaderActivity.EXTRA_LOAN_ID, loanId)
             putExtra(PdfReaderActivity.EXTRA_START_PAGE, startPage)
+            putExtra(PdfReaderActivity.EXTRA_IS_KILAT, isKilat)
+            putExtra(PdfReaderActivity.EXTRA_DUE_DATE, dueDate)
         }
         startActivity(intent)
     }

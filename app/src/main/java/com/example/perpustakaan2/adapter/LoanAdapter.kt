@@ -40,9 +40,24 @@ class LoanAdapter(
                 binding.btnReturnLoan.visibility = android.view.View.GONE
                 binding.btnReadLoan.text = "Buka Kembali"
             } else {
-                binding.tvLoanStatus.text = if (loan.tipe == "kilat") "SESI KILAT (2 JAM)" else "PINJAMAN AKTIF (7 HARI)"
-                val dueStr = dateFormat.format(Date(loan.tanggalJatuhTempo))
-                binding.tvLoanDueDate.text = "Jatuh tempo: $dueStr"
+                if (loan.tipe == "kilat") {
+                    val remainingMillis = loan.tanggalJatuhTempo - System.currentTimeMillis()
+                    if (remainingMillis <= 0) {
+                        binding.tvLoanStatus.text = "SESI KILAT (KEDALUWARSA)"
+                        binding.tvLoanDueDate.text = "Waktu 2 jam telah habis. Sedang proses pengembalian."
+                    } else {
+                        val hours = remainingMillis / (3600 * 1000)
+                        val minutes = (remainingMillis % (3600 * 1000)) / (60 * 1000)
+                        binding.tvLoanStatus.text = "SESI KILAT (2 JAM)"
+                        binding.tvLoanDueDate.text = "Sisa Waktu: $hours jam $minutes menit"
+                    }
+                    binding.btnReturnLoan.text = "Akhiri Sesi"
+                } else {
+                    binding.tvLoanStatus.text = "PINJAMAN AKTIF (7 HARI)"
+                    val dueStr = dateFormat.format(Date(loan.tanggalJatuhTempo))
+                    binding.tvLoanDueDate.text = "Jatuh tempo: $dueStr"
+                    binding.btnReturnLoan.text = "Kembalikan"
+                }
                 binding.tvReadingProgress.text = "Progres: Halaman ${loan.halamanTerakhir} dari ${if (loan.jumlahHalaman > 0) loan.jumlahHalaman else '?'}"
                 binding.btnReturnLoan.visibility = android.view.View.VISIBLE
                 binding.btnReadLoan.text = "Lanjut Baca (Hal ${loan.halamanTerakhir})"

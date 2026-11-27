@@ -2,8 +2,10 @@ package com.example.perpustakaan2.ui
 
 import android.graphics.Color
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.view.View
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.perpustakaan2.R
@@ -25,6 +27,8 @@ class PdfReaderActivity : AppCompatActivity() {
         const val EXTRA_MAX_PREVIEW_PERCENT = "extra_max_preview_percent"
         const val EXTRA_LOAN_ID = "extra_loan_id"
         const val EXTRA_START_PAGE = "extra_start_page"
+        const val EXTRA_IS_KILAT = "extra_is_kilat"
+        const val EXTRA_DUE_DATE = "extra_due_date"
     }
 
     private lateinit var binding: ActivityPdfReaderBinding
@@ -41,6 +45,9 @@ class PdfReaderActivity : AppCompatActivity() {
     private var maxPreviewPercent: Int = 100
     private var loanId: String = ""
     private var startPage: Int = 1
+    private var isKilat: Boolean = false
+    private var dueDate: Long = 0L
+    private var kilatTimer: CountDownTimer? = null
 
     private var currentPageIndex: Int = 0
     private var totalPages: Int = 0
@@ -59,17 +66,46 @@ class PdfReaderActivity : AppCompatActivity() {
         maxPreviewPercent = intent.getIntExtra(EXTRA_MAX_PREVIEW_PERCENT, 100)
         loanId = intent.getStringExtra(EXTRA_LOAN_ID) ?: ""
         startPage = intent.getIntExtra(EXTRA_START_PAGE, 1).coerceAtLeast(1)
+        isKilat = intent.getBooleanExtra(EXTRA_IS_KILAT, false)
+        dueDate = intent.getLongExtra(EXTRA_DUE_DATE, 0L)
 
         pdfHelper = PdfRendererHelper(this)
 
         setupToolbar()
         setupControls()
+        setupKilatTimer()
         resolveAndLoadPdf()
     }
 
     private fun setupToolbar() {
         binding.toolbarReader.title = if (isPreview) "$bookTitle (Cuplikan 20%)" else bookTitle
         binding.toolbarReader.setNavigationOnClickListener { finish() }
+
+        if (loanId.isNotBlank()) {
+            binding.btnReturnFromReader.visibility = View.VISIBLE
+            binding.btnReturnFromReader.setOnClickListener {
+                val title = if (isKilat) "Akhiri Sesi Kilat?" else "Kembalikan Buku?"
+                val msg = if (isKilat) {
+                    "Apakah Anda ingin mengakhiri Sesi Baca Kilat sekarang dan mengembalikan buku?"
+                } else {
+                    "Apakah Anda ingin mengembalikan buku ini sekarang?"
+                }
+                AlertDialog.Builder(this)
+                    .setTitle(title)
+                    .setMessage(msg)
+                    .setPositiveButton("Ya, Kembalikan") { _, _ ->
+                        lifecycleScope.launch {
+                            loanRepository.returnBook(loanId)
+                            Toast.makeText(this@PdfReaderActivity, "Buku berhasil dikembalikan", Toast.LENGTH_SHORT).show()
+                            finish()
+                        }
+                    }
+                    .setNegativeButton("Batal", null)
+                    .show()
+            }
+        } else {
+            binding.btnReturnFromReader.visibility = View.GONE
+        }
 
         binding.btnToggleReaderDark.setOnClickListener {
             isDarkMode = !isDarkMode
@@ -79,6 +115,55 @@ class PdfReaderActivity : AppCompatActivity() {
                 if (isDarkMode) R.drawable.ic_visibility else R.drawable.ic_visibility_off
             )
         }
+    }
+
+    private fun setupKilatTimer() {
+        if (!isKilat || dueDate <= 0L) return
+
+        val now = System.currentTimeMillis()
+        val remaining = dueDate - now
+
+        if (remaining <= 0) {
+            AlertDialog.Builder(this)
+                .setTitle("Waktu Sesi Kilat Habis")
+                .setMessage("Waktu Sesi Baca Kilat (2 Jam) telah berakhir. Buku telah otomatis dikembalikan.")
+                .setPositiveButton("OK") { _, _ ->
+                    lifecycleScope.launch {
+                        if (loanId.isNotBlank()) loanRepository.returnBook(loanId)
+                        finish()
+                    }
+                }
+                .setCancelable(false)
+                .show()
+            return
+        }
+
+        kilatTimer = object : CountDownTimer(remaining, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                val totalSeconds = millisUntilFinished / 1000
+                val hours = totalSeconds / 3600
+                val minutes = (totalSeconds % 3600) / 60
+                val seconds = totalSeconds % 60
+                binding.toolbarReader.subtitle = String.format("⏱️ Sisa Sesi Kilat: %02d:%02d:%02d", hours, minutes, seconds)
+            }
+
+            override fun onFinish() {
+                binding.toolbarReader.subtitle = "⏱️ Sesi Kilat Berakhir"
+                if (!isFinishing) {
+                    AlertDialog.Builder(this@PdfReaderActivity)
+                        .setTitle("Waktu Sesi Kilat Habis")
+                        .setMessage("Waktu Sesi Baca Kilat 2 jam Anda telah berakhir. Buku telah otomatis dikembalikan.")
+                        .setPositiveButton("OK") { _, _ ->
+                            lifecycleScope.launch {
+                                if (loanId.isNotBlank()) loanRepository.returnBook(loanId)
+                                finish()
+                            }
+                        }
+                        .setCancelable(false)
+                        .show()
+                }
+            }
+        }.start()
     }
 
     private fun setupControls() {
@@ -209,6 +294,8 @@ class PdfReaderActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        kilatTimer?.cancel()
+        kilatTimer = null
         pdfHelper.close()
     }
 }

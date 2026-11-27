@@ -6,6 +6,7 @@ import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
@@ -16,10 +17,13 @@ import com.example.perpustakaan2.data.repository.BookRepository
 import com.example.perpustakaan2.data.repository.CategoryRepository
 import com.example.perpustakaan2.databinding.ActivityAddEditBookBinding
 import com.example.perpustakaan2.util.PdfRendererHelper
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.io.File
 import java.io.FileOutputStream
+import java.util.UUID
 
 class AddEditBookActivity : AppCompatActivity() {
 
@@ -70,6 +74,10 @@ class AddEditBookActivity : AppCompatActivity() {
     private fun setupListeners() {
         binding.cardPickCover.setOnClickListener {
             pickImageLauncher.launch("image/*")
+        }
+
+        binding.cardPickPdf.setOnClickListener {
+            pickPdfLauncher.launch("application/pdf")
         }
 
         binding.btnChoosePdf.setOnClickListener {
@@ -151,38 +159,95 @@ class AddEditBookActivity : AppCompatActivity() {
         }
     }
 
+    private fun setUploadProgress(isLoading: Boolean, message: String = "") {
+        binding.layoutUploadProgress.visibility = if (isLoading) View.VISIBLE else View.GONE
+        binding.tvUploadProgress.text = message
+        binding.btnSaveBook.isEnabled = !isLoading
+        binding.cardPickCover.isEnabled = !isLoading
+        binding.btnChoosePdf.isEnabled = !isLoading
+        binding.cardPickPdf.isEnabled = !isLoading
+    }
+
     private fun handlePickedImage(uri: Uri) {
-        try {
-            val inputStream = contentResolver.openInputStream(uri) ?: return
-            val file = File(filesDir, "cover_${System.currentTimeMillis()}.jpg")
-            FileOutputStream(file).use { output ->
-                inputStream.copyTo(output)
+        setUploadProgress(true, "Mengunggah foto sampul ke Cloud Storage...")
+        lifecycleScope.launch {
+            try {
+                val fileName = "cover_${UUID.randomUUID()}.jpg"
+                val storageRef = FirebaseStorage.getInstance().reference.child("covers/$fileName")
+                storageRef.putFile(uri).await()
+                val downloadUrl = storageRef.downloadUrl.await().toString()
+
+                coverPathOrUrl = downloadUrl
+                binding.etCoverUrl.setText(downloadUrl)
+                binding.ivCoverPreview.visibility = View.VISIBLE
+                binding.layoutCoverPlaceholder.visibility = View.GONE
+                binding.ivCoverPreview.load(downloadUrl) { crossfade(true) }
+                Toast.makeText(this@AddEditBookActivity, "Foto sampul berhasil diunggah ke Cloud!", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                val msg = e.localizedMessage ?: e.message ?: "Gagal upload"
+                try {
+                    val inputStream = contentResolver.openInputStream(uri)
+                    if (inputStream != null) {
+                        val localFile = File(filesDir, "cover_${System.currentTimeMillis()}.jpg")
+                        FileOutputStream(localFile).use { inputStream.copyTo(it) }
+                        coverPathOrUrl = "file://${localFile.absolutePath}"
+                        binding.etCoverUrl.setText(coverPathOrUrl)
+                        binding.ivCoverPreview.visibility = View.VISIBLE
+                        binding.layoutCoverPlaceholder.visibility = View.GONE
+                        binding.ivCoverPreview.load(localFile)
+                    }
+                } catch (_: Exception) {}
+
+                AlertDialog.Builder(this@AddEditBookActivity)
+                    .setTitle("Peringatan Cloud Storage")
+                    .setMessage("Gagal mengunggah ke Firebase Storage ($msg).\n\n" +
+                            "💡 Agar foto sampul bisa dilihat di HP teman/user lain, pastikan fitur 'Storage' sudah diaktifkan di Firebase Console, atau masukkan URL gambar web (https://) langsung pada kolom URL.")
+                    .setPositiveButton("Mengerti", null)
+                    .show()
+            } finally {
+                setUploadProgress(false)
             }
-            coverPathOrUrl = "file://${file.absolutePath}"
-            binding.etCoverUrl.setText(coverPathOrUrl)
-            binding.ivCoverPreview.visibility = View.VISIBLE
-            binding.layoutCoverPlaceholder.visibility = View.GONE
-            binding.ivCoverPreview.load(file)
-            Toast.makeText(this, "Foto sampul berhasil dipilih", Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            Toast.makeText(this, "Gagal memproses gambar: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun handlePickedPdf(uri: Uri) {
-        try {
-            val inputStream = contentResolver.openInputStream(uri) ?: return
-            val file = File(filesDir, "doc_${System.currentTimeMillis()}.pdf")
-            FileOutputStream(file).use { output ->
-                inputStream.copyTo(output)
+        setUploadProgress(true, "Mengunggah berkas PDF ke Cloud Storage...")
+        lifecycleScope.launch {
+            try {
+                val fileName = "doc_${UUID.randomUUID()}.pdf"
+                val storageRef = FirebaseStorage.getInstance().reference.child("books/$fileName")
+                storageRef.putFile(uri).await()
+                val downloadUrl = storageRef.downloadUrl.await().toString()
+
+                pdfPathOrUrl = downloadUrl
+                binding.etPdfUrl.setText(downloadUrl)
+                binding.tvPdfStatus.text = "Dokumen Cloud: Berhasil diunggah"
+                detectPdfPages(downloadUrl)
+                Toast.makeText(this@AddEditBookActivity, "File PDF berhasil diunggah ke Cloud!", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                val msg = e.localizedMessage ?: e.message ?: "Gagal upload"
+                try {
+                    val inputStream = contentResolver.openInputStream(uri)
+                    if (inputStream != null) {
+                        val localFile = File(filesDir, "doc_${System.currentTimeMillis()}.pdf")
+                        FileOutputStream(localFile).use { inputStream.copyTo(it) }
+                        val localPath = "file://${localFile.absolutePath}"
+                        pdfPathOrUrl = localPath
+                        binding.etPdfUrl.setText(localPath)
+                        binding.tvPdfStatus.text = "Dokumen Lokal: ${localFile.name}"
+                        detectPdfPages(localPath)
+                    }
+                } catch (_: Exception) {}
+
+                AlertDialog.Builder(this@AddEditBookActivity)
+                    .setTitle("Peringatan Cloud Storage")
+                    .setMessage("Gagal mengunggah ke Firebase Storage ($msg).\n\n" +
+                            "💡 Agar file PDF bisa dibaca di HP teman/user lain, pastikan fitur 'Storage' sudah diaktifkan di Firebase Console, atau masukkan URL file PDF online (https://) langsung pada kolom URL.")
+                    .setPositiveButton("Mengerti", null)
+                    .show()
+            } finally {
+                setUploadProgress(false)
             }
-            val localPath = "file://${file.absolutePath}"
-            pdfPathOrUrl = localPath
-            binding.etPdfUrl.setText(localPath)
-            binding.tvPdfStatus.text = "Dokumen: ${file.name}"
-            detectPdfPages(localPath)
-        } catch (e: Exception) {
-            Toast.makeText(this, "Gagal memproses PDF: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 

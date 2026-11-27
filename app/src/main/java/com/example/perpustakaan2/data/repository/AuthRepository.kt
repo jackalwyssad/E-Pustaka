@@ -110,6 +110,67 @@ class AuthRepository(
         }
     }
 
+    suspend fun sendPasswordReset(email: String): Result<String> {
+        val trimmedEmail = email.trim()
+        if (trimmedEmail.isEmpty()) {
+            return Result.failure(Exception("Alamat email tidak boleh kosong."))
+        }
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()) {
+            return Result.failure(Exception("Format email tidak valid. Masukkan alamat email yang benar."))
+        }
+
+        return try {
+            // 1. Cek apakah email terdaftar di Firestore collection "users"
+            val firestoreDocs = firestore.collection(Constants.COLLECTION_USERS)
+                .whereEqualTo("email", trimmedEmail)
+                .get()
+                .await()
+
+            val firestoreDocsLower = if (firestoreDocs.isEmpty) {
+                firestore.collection(Constants.COLLECTION_USERS)
+                    .whereEqualTo("email", trimmedEmail.lowercase())
+                    .get()
+                    .await()
+            } else {
+                firestoreDocs
+            }
+
+            // 2. Cek metode login di Firebase Auth
+            val signInMethods = try {
+                auth.fetchSignInMethodsForEmail(trimmedEmail).await().signInMethods
+            } catch (_: Exception) {
+                null
+            }
+
+            val isAdmin = trimmedEmail.equals("admin@epustaka.com", ignoreCase = true)
+            val isRegistered = !firestoreDocsLower.isEmpty || !signInMethods.isNullOrEmpty() || isAdmin
+
+            if (!isRegistered) {
+                return Result.failure(Exception("Email belum terdaftar. Silakan daftar akun baru terlebih dahulu."))
+            }
+
+            // 3. Kirim link reset password ke email pengguna
+            auth.sendPasswordResetEmail(trimmedEmail).await()
+            Result.success("Tautan untuk mengubah kata sandi telah dikirim ke $trimmedEmail. Silakan periksa inbox atau folder spam Gmail Anda.")
+        } catch (e: Exception) {
+            val msg = e.localizedMessage ?: e.message ?: ""
+            val friendlyMsg = when {
+                msg.contains("no user record", ignoreCase = true) ||
+                msg.contains("user-not-found", ignoreCase = true) ||
+                msg.contains("belum terdaftar", ignoreCase = true) ->
+                    "Email belum terdaftar. Silakan daftar akun baru terlebih dahulu."
+                msg.contains("badly formatted", ignoreCase = true) ||
+                msg.contains("invalid-email", ignoreCase = true) ->
+                    "Format email tidak valid. Pastikan alamat email sudah benar."
+                msg.contains("network error", ignoreCase = true) ||
+                msg.contains("timeout", ignoreCase = true) ->
+                    "Gagal terhubung ke internet. Periksa koneksi data atau Wi-Fi Anda."
+                else -> msg
+            }
+            Result.failure(Exception(friendlyMsg))
+        }
+    }
+
     suspend fun resendVerificationEmail(): Result<String> {
         return try {
             val user = auth.currentUser ?: throw Exception("Pengguna belum login.")

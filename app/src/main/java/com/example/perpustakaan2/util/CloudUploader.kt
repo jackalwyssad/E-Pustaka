@@ -55,17 +55,16 @@ object CloudUploader {
                 .post(requestBody)
                 .build()
 
-            client.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    val url = response.body?.string()?.trim() ?: ""
-                    if (url.startsWith("http://") || url.startsWith("https://")) {
-                        Result.success(url)
-                    } else {
-                        Result.failure(Exception("Respon Catbox tidak valid: $url"))
-                    }
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful) {
+                val url = response.body?.string()?.trim() ?: ""
+                if (url.startsWith("http://") || url.startsWith("https://")) {
+                    Result.success(url)
                 } else {
-                    Result.failure(Exception("Catbox HTTP ${response.code}"))
+                    Result.failure(Exception("Respon Catbox tidak valid: $url"))
                 }
+            } else {
+                Result.failure(Exception("Catbox HTTP ${response.code}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -86,21 +85,20 @@ object CloudUploader {
                 .post(requestBody)
                 .build()
 
-            client.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    val responseStr = response.body?.string()?.trim() ?: ""
-                    val json = JSONObject(responseStr)
-                    if (json.optString("status") == "success") {
-                        val rawUrl = json.getJSONObject("data").getString("url")
-                        // Mengubah https://tmpfiles.org/12345/file.ext menjadi https://tmpfiles.org/dl/12345/file.ext untuk unduhan langsung
-                        val directUrl = rawUrl.replace("tmpfiles.org/", "tmpfiles.org/dl/")
-                        Result.success(directUrl)
-                    } else {
-                        Result.failure(Exception("Tmpfiles API error: $responseStr"))
-                    }
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful) {
+                val responseStr = response.body?.string()?.trim() ?: ""
+                val json = JSONObject(responseStr)
+                if (json.optString("status") == "success") {
+                    val rawUrl = json.getJSONObject("data").getString("url")
+                    // Mengubah https://tmpfiles.org/12345/file.ext menjadi https://tmpfiles.org/dl/12345/file.ext untuk unduhan langsung
+                    val directUrl = rawUrl.replace("tmpfiles.org/", "tmpfiles.org/dl/")
+                    Result.success(directUrl)
                 } else {
-                    Result.failure(Exception("Tmpfiles HTTP ${response.code}"))
+                    Result.failure(Exception("Tmpfiles API error: $responseStr"))
                 }
+            } else {
+                Result.failure(Exception("Tmpfiles HTTP ${response.code}"))
             }
         } catch (e: Exception) {
             Result.failure(e)

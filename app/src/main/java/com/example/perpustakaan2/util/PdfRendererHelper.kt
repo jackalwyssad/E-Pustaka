@@ -57,7 +57,6 @@ class PdfRendererHelper(private val context: Context) {
         }
     }
 
-    private val renderLock = Any()
     private var fileDescriptor: ParcelFileDescriptor? = null
     private var pdfRenderer: PdfRenderer? = null
     private var activePdfFile: File? = null
@@ -129,28 +128,27 @@ class PdfRendererHelper(private val context: Context) {
                 .header("Accept", "*/*")
                 .build()
 
-            CloudUploader.client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw IOException("Server mengembalikan kode HTTP ${response.code}: ${response.message}")
-                }
-
-                val body = response.body ?: throw IOException("Konten unduhan kosong")
-                val tempDownload = File.createTempFile("epustaka_dl_", ".tmp", context.cacheDir)
-
-                tempDownload.outputStream().use { output ->
-                    body.byteStream().copyTo(output)
-                }
-
-                // Validasi format file PDF
-                if (!validatePdfHeader(tempDownload)) {
-                    tempDownload.delete()
-                    throw IOException("Berkas yang diunduh bukan PDF yang valid. Jika menggunakan Google Drive, pastikan tautan berizin publik ('Siapa saja yang memiliki link').")
-                }
-
-                // Simpan ke cache permanen
-                tempDownload.copyTo(cachedFile, overwrite = true)
-                tempDownload.delete()
+            val response = CloudUploader.client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                throw IOException("Server mengembalikan kode HTTP ${response.code}: ${response.message}")
             }
+
+            val body = response.body ?: throw IOException("Konten unduhan kosong")
+            val tempDownload = File.createTempFile("epustaka_dl_", ".tmp", context.cacheDir)
+
+            tempDownload.outputStream().use { output ->
+                body.byteStream().copyTo(output)
+            }
+
+            // Validasi format file PDF
+            if (!validatePdfHeader(tempDownload)) {
+                tempDownload.delete()
+                throw IOException("Berkas yang diunduh bukan PDF yang valid. Jika menggunakan Google Drive, pastikan tautan berizin publik ('Siapa saja yang memiliki link').")
+            }
+
+            // Simpan ke cache permanen
+            tempDownload.copyTo(cachedFile, overwrite = true)
+            tempDownload.delete()
 
             activePdfFile = cachedFile
             fileDescriptor = ParcelFileDescriptor.open(cachedFile, ParcelFileDescriptor.MODE_READ_ONLY)
@@ -314,46 +312,42 @@ class PdfRendererHelper(private val context: Context) {
     }
 
     suspend fun renderPage(pageIndex: Int, targetWidth: Int = 1080): Bitmap? = withContext(Dispatchers.Default) {
-        synchronized(renderLock) {
-            val renderer = pdfRenderer ?: return@withContext null
-            if (pageIndex < 0 || pageIndex >= renderer.pageCount) return@withContext null
+        val renderer = pdfRenderer ?: return@withContext null
+        if (pageIndex < 0 || pageIndex >= renderer.pageCount) return@withContext null
 
-            var page: PdfRenderer.Page? = null
-            try {
-                page = renderer.openPage(pageIndex)
-                val aspectRatio = page.height.toFloat() / page.width.toFloat()
-                val targetHeight = (targetWidth * aspectRatio).toInt().coerceAtLeast(100)
+        var page: PdfRenderer.Page? = null
+        try {
+            page = renderer.openPage(pageIndex)
+            val aspectRatio = page.height.toFloat() / page.width.toFloat()
+            val targetHeight = (targetWidth * aspectRatio).toInt().coerceAtLeast(100)
 
-                val bitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
-                page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                bitmap
-            } catch (_: Exception) {
-                null
-            } finally {
-                page?.close()
-            }
+            val bitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
+            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+            bitmap
+        } catch (_: Exception) {
+            null
+        } finally {
+            page?.close()
         }
     }
 
     fun close() {
-        synchronized(renderLock) {
-            try {
-                pdfRenderer?.close()
-            } catch (_: Exception) {}
-            try {
-                fileDescriptor?.close()
-            } catch (_: Exception) {}
-            try {
-                // Hapus file sementara jika bukan berkas cache permanen
-                if (activePdfFile != null && activePdfFile!!.name.startsWith("epustaka_")) {
-                    activePdfFile?.delete()
-                }
-            } catch (_: Exception) {}
+        try {
+            pdfRenderer?.close()
+        } catch (_: Exception) {}
+        try {
+            fileDescriptor?.close()
+        } catch (_: Exception) {}
+        try {
+            // Hapus file sementara jika bukan berkas cache permanen
+            if (activePdfFile != null && activePdfFile!!.name.startsWith("epustaka_")) {
+                activePdfFile?.delete()
+            }
+        } catch (_: Exception) {}
 
-            pdfRenderer = null
-            fileDescriptor = null
-            activePdfFile = null
-            pageCount = 0
-        }
+        pdfRenderer = null
+        fileDescriptor = null
+        activePdfFile = null
+        pageCount = 0
     }
 }

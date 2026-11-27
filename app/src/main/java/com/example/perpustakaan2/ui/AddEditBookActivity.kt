@@ -24,8 +24,6 @@ import com.example.perpustakaan2.util.CloudUploader
 import com.example.perpustakaan2.util.PdfRendererHelper
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -52,7 +50,6 @@ class AddEditBookActivity : AppCompatActivity() {
 
     private var coverPathOrUrl: String = ""
     private var pdfPathOrUrl: String = ""
-    private var detectPagesJob: Job? = null
 
     private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { handlePickedImage(it) }
@@ -277,21 +274,12 @@ class AddEditBookActivity : AppCompatActivity() {
         setUploadProgress(true, "Menyiapkan dan mengunggah berkas PDF ke Cloud...")
         lifecycleScope.launch {
             try {
+                val inputStream = contentResolver.openInputStream(uri) ?: return@launch
                 val localFile = File(filesDir, "doc_${System.currentTimeMillis()}.pdf")
-                val copied = withContext(Dispatchers.IO) {
-                    contentResolver.openInputStream(uri)?.use { inputStream ->
-                        FileOutputStream(localFile).use { outputStream ->
-                            inputStream.copyTo(outputStream)
-                        }
-                        true
-                    } ?: false
-                }
-                if (!copied) return@launch
+                FileOutputStream(localFile).use { inputStream.copyTo(it) }
 
                 // Hitung jumlah halaman langsung dari file lokal (Cepat & Akurat tanpa unduh jaringan)
-                val detectedPages = withContext(Dispatchers.IO) {
-                    PdfRendererHelper.countPagesInLocalFile(localFile)
-                }
+                val detectedPages = PdfRendererHelper.countPagesInLocalFile(localFile)
                 if (detectedPages > 0) {
                     binding.etBookPages.setText(detectedPages.toString())
                     binding.tvPdfPageNotice.visibility = View.VISIBLE
@@ -340,11 +328,9 @@ class AddEditBookActivity : AppCompatActivity() {
 
     private fun detectPdfPages(source: String) {
         if (source.isBlank()) return
-        detectPagesJob?.cancel()
-        detectPagesJob = lifecycleScope.launch {
-            delay(600)
-            binding.tvPdfPageNotice.visibility = View.VISIBLE
-            binding.tvPdfPageNotice.text = "Memeriksa jumlah halaman PDF..."
+        binding.tvPdfPageNotice.visibility = View.VISIBLE
+        binding.tvPdfPageNotice.text = "Memeriksa jumlah halaman PDF..."
+        lifecycleScope.launch {
             val res = pdfHelper.openPdfFromUrl(source)
             res.fold(
                 onSuccess = { count ->

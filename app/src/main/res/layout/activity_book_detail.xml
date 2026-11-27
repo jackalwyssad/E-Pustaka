@@ -11,7 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/surface"
-        app:elevation="2dp">
+        app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbarDetail"
@@ -23,18 +23,23 @@
 
             <ImageView
                 android:id="@+id/btnFavorite"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:layout_gravity="end"
-                android:layout_marginEnd="16dp"
+                android:layout_marginEnd="12dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
-                android:focusable="true"
                 android:contentDescription="Favorit"
-                android:padding="6dp"
+                android:focusable="true"
+                android:padding="8dp"
                 android:src="@drawable/ic_favorite_border"
                 app:tint="@color/text_primary" />
         </com.google.android.material.appbar.MaterialToolbar>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/outline" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
@@ -47,7 +52,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp"
+            android:padding="20dp"
             android:paddingBottom="40dp">
 
             <!-- Hero Section -->
@@ -57,11 +62,12 @@
                 android:orientation="horizontal">
 
                 <com.google.android.material.card.MaterialCardView
-                    android:layout_width="120dp"
-                    android:layout_height="175dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="6dp"
-                    app:strokeWidth="0dp">
+                    android:layout_width="124dp"
+                    android:layout_height="180dp"
+                    app:cardCornerRadius="14dp"
+                    app:cardElevation="4dp"
+                    app:strokeColor="@color/outline"
+                    app:strokeWidth="1dp">
 
                     <ImageView
                         android:id="@+id/ivDetailCover"
@@ -83,6 +89,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:background="@drawable/bg_badge_primary"
+                        android:letterSpacing="0.02"
                         android:paddingHorizontal="10dp"
                         android:paddingVertical="4dp"
                         android:text="Teknologi"
@@ -94,26 +101,27 @@
                         android:id="@+id/tvDetailTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="10dp"
+                        android:letterSpacing="-0.01"
                         android:lineSpacingExtra="3dp"
                         android:text="Judul Buku Lengkap dan Detail"
                         android:textColor="@color/text_primary"
-                        android:textSize="18sp"
+                        android:textSize="20sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/tvDetailAuthor"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="5dp"
                         android:text="Oleh Penulis Buku"
                         android:textColor="@color/text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="14sp" />
 
                     <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="10dp"
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
 
@@ -126,17 +134,17 @@
                             android:id="@+id/tvDetailRating"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="4dp"
+                            android:layout_marginStart="5dp"
                             android:text="4.8 / 5.0"
                             android:textColor="@color/text_primary"
-                            android:textSize="13sp"
+                            android:textSize="14sp"
                             android:textStyle="bold" />
 
                         <TextView
                             android:id="@+id/tvDetailRatingCount"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="4dp"
+                            android:layout_marginStart="5dp"
                             android:text="(18 ulasan)"
                             android:textColor="@color/text_secondary"
                             android:textSize="12sp" />
@@ -148,18 +156,19 @@
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="20dp"
                 app:cardBackgroundColor="@color/surface"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="1dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
                 app:strokeColor="@color/outline"
                 app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingVertical="12dp">
+                    android:paddingVertical="14dp">
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -174,20 +183,21 @@
                             android:layout_height="wrap_content"
                             android:text="120"
                             android:textColor="@color/text_primary"
-                            android:textSize="14sp"
+                            android:textSize="16sp"
                             android:textStyle="bold" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
                             android:text="Halaman"
                             android:textColor="@color/text_secondary"
-                            android:textSize="10sp" />
+                            android:textSize="11sp" />
                     </LinearLayout>
 
                     <View
                         android:layout_width="1dp"
-                        android:layout_height="24dp"
+                        android:layout_height="28dp"
                         android:background="@color/outline" />
 
                     <LinearLayout
@@ -203,20 +213,21 @@
                             android:layout_height="wrap_content"
                             android:text="14"
                             android:textColor="@color/text_primary"
-                            android:textSize="14sp"
+                            android:textSize="16sp"
                             android:textStyle="bold" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
                             android:text="Peminjam"
                             android:textColor="@color/text_secondary"
-                            android:textSize="10sp" />
+                            android:textSize="11sp" />
                     </LinearLayout>
 
                     <View
                         android:layout_width="1dp"
-                        android:layout_height="24dp"
+                        android:layout_height="28dp"
                         android:background="@color/outline" />
 
                     <LinearLayout
@@ -232,20 +243,21 @@
                             android:layout_height="wrap_content"
                             android:text="3"
                             android:textColor="@color/primary"
-                            android:textSize="14sp"
+                            android:textSize="16sp"
                             android:textStyle="bold" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
                             android:text="Tersedia"
                             android:textColor="@color/text_secondary"
-                            android:textSize="10sp" />
+                            android:textSize="11sp" />
                     </LinearLayout>
 
                     <View
                         android:layout_width="1dp"
-                        android:layout_height="24dp"
+                        android:layout_height="28dp"
                         android:background="@color/outline" />
 
                     <LinearLayout
@@ -260,16 +272,17 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="3"
-                            android:textColor="@color/gold_star"
-                            android:textSize="14sp"
+                            android:textColor="#B45309"
+                            android:textSize="16sp"
                             android:textStyle="bold" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
                             android:text="Slot Kilat"
                             android:textColor="@color/text_secondary"
-                            android:textSize="10sp" />
+                            android:textSize="11sp" />
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -280,8 +293,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 app:cardBackgroundColor="@color/surface"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="1dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
                 app:strokeColor="@color/outline"
                 app:strokeWidth="1dp">
 
@@ -289,7 +302,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="14dp">
+                    android:padding="16dp">
 
                     <TextView
                         android:id="@+id/tvStockDetailStatus"
@@ -304,28 +317,29 @@
                         android:id="@+id/pbStock"
                         style="?android:attr/progressBarStyleHorizontal"
                         android:layout_width="match_parent"
-                        android:layout_height="6dp"
-                        android:layout_marginTop="8dp"
+                        android:layout_height="8dp"
+                        android:layout_marginTop="10dp"
                         android:progress="60"
+                        android:progressBackgroundTint="@color/surface_variant"
                         android:progressTint="@color/primary" />
 
                     <TextView
                         android:id="@+id/tvQueueNotice"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
+                        android:layout_marginTop="8dp"
                         android:text="0 pembaca sedang dalam antrian pinjam."
                         android:textColor="@color/text_secondary"
-                        android:textSize="11sp" />
+                        android:textSize="12sp" />
 
                     <TextView
                         android:id="@+id/tvKilatNotice"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
+                        android:layout_marginTop="4dp"
                         android:text="Tersedia 3 slot Sesi Kilat (langsung baca 2 jam tanpa antri)."
                         android:textColor="@color/primary"
-                        android:textSize="11sp"
+                        android:textSize="12sp"
                         android:textStyle="bold" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -346,7 +360,7 @@
                     android:textSize="15sp"
                     android:textStyle="bold"
                     android:visibility="gone"
-                    app:cornerRadius="12dp"
+                    app:cornerRadius="14dp"
                     app:icon="@drawable/ic_book" />
 
                 <!-- Return Book / End Quick Session Button -->
@@ -355,13 +369,13 @@
                     style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="match_parent"
                     android:layout_height="50dp"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="10dp"
                     android:text="Kembalikan Buku / Akhiri Sesi"
                     android:textColor="@color/error"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:visibility="gone"
-                    app:cornerRadius="12dp"
+                    app:cornerRadius="14dp"
                     app:icon="@drawable/ic_history"
                     app:iconTint="@color/error"
                     app:strokeColor="@color/error" />
@@ -373,14 +387,16 @@
                     android:layout_height="wrap_content"
                     android:visibility="gone"
                     app:cardBackgroundColor="@color/secondary_container"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="0dp">
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/outline"
+                    app:strokeWidth="1dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="14dp">
+                        android:padding="16dp">
 
                         <TextView
                             android:id="@+id/tvUserQueuePosition"
@@ -394,21 +410,22 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
+                            android:layout_marginTop="4dp"
+                            android:lineSpacingExtra="2dp"
                             android:text="Sistem akan otomatis memberitahu jika buku sudah siap dipinjam."
                             android:textColor="@color/text_secondary"
-                            android:textSize="11sp" />
+                            android:textSize="12sp" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnCancelQueueFromDetail"
                             style="@style/Widget.Material3.Button.OutlinedButton"
                             android:layout_width="match_parent"
                             android:layout_height="44dp"
-                            android:layout_marginTop="8dp"
+                            android:layout_marginTop="10dp"
                             android:text="Batalkan Antrian Saya"
                             android:textColor="@color/error"
-                            android:textSize="12sp"
-                            app:cornerRadius="10dp"
+                            android:textSize="13sp"
+                            app:cornerRadius="12dp"
                             app:strokeColor="@color/error" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -421,7 +438,7 @@
                     android:text="Pinjam Buku (Masa Pinjam 7 Hari)"
                     android:textSize="15sp"
                     android:textStyle="bold"
-                    app:cornerRadius="12dp"
+                    app:cornerRadius="14dp"
                     app:icon="@drawable/ic_bookmark" />
 
                 <!-- Quick Session Button -->
@@ -430,14 +447,15 @@
                     style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="match_parent"
                     android:layout_height="50dp"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="10dp"
                     android:text="Sesi Baca Kilat (2 Jam Langsung Baca)"
                     android:textColor="@color/text_primary"
                     android:textSize="14sp"
                     android:textStyle="bold"
-                    app:cornerRadius="12dp"
+                    app:cornerRadius="14dp"
                     app:icon="@drawable/ic_flash"
-                    app:iconTint="@color/gold_star" />
+                    app:iconTint="#B45309"
+                    app:strokeColor="@color/outline" />
 
                 <!-- Preview 20% Button -->
                 <com.google.android.material.button.MaterialButton
@@ -445,23 +463,24 @@
                     style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="10dp"
                     android:text="Baca Cuplikan (20% Halaman Gratis)"
                     android:textColor="@color/text_secondary"
                     android:textSize="13sp"
-                    app:cornerRadius="12dp"
+                    app:cornerRadius="14dp"
                     app:icon="@drawable/ic_visibility"
-                    app:iconTint="@color/text_secondary" />
+                    app:iconTint="@color/text_secondary"
+                    app:strokeColor="@color/outline" />
             </LinearLayout>
 
             <!-- Synopsis Card -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="20dp"
                 app:cardBackgroundColor="@color/surface"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="1dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
                 app:strokeColor="@color/outline"
                 app:strokeWidth="1dp">
 
@@ -476,18 +495,18 @@
                         android:layout_height="wrap_content"
                         android:text="Sinopsis &amp; Deskripsi"
                         android:textColor="@color/text_primary"
-                        android:textSize="15sp"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/tvDetailSynopsis"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:lineSpacingExtra="4dp"
+                        android:layout_marginTop="10dp"
+                        android:lineSpacingExtra="5dp"
                         android:text="Sinopsis buku..."
                         android:textColor="@color/text_primary"
-                        android:textSize="13sp" />
+                        android:textSize="14sp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -495,7 +514,7 @@
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp">
+                android:layout_marginTop="24dp">
 
                 <TextView
                     android:id="@+id/tvReviewSectionTitle"
@@ -503,23 +522,24 @@
                     android:layout_height="wrap_content"
                     android:layout_alignParentStart="true"
                     android:layout_centerVertical="true"
+                    android:letterSpacing="-0.01"
                     android:text="Ulasan &amp; Penilaian (0)"
                     android:textColor="@color/text_primary"
-                    android:textSize="16sp"
+                    android:textSize="17sp"
                     android:textStyle="bold" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnAddReview"
                     style="@style/Widget.Material3.Button.TonalButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="38dp"
+                    android:layout_height="40dp"
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     android:text="Beri Ulasan"
                     android:textSize="12sp"
                     android:textStyle="bold"
                     android:visibility="gone"
-                    app:cornerRadius="19dp" />
+                    app:cornerRadius="20dp" />
             </RelativeLayout>
 
             <!-- Reviews List -->
@@ -527,7 +547,7 @@
                 android:id="@+id/rvReviews"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="12dp"
                 android:nestedScrollingEnabled="false"
                 tools:listitem="@layout/item_review" />
 
@@ -537,6 +557,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:gravity="center"
+                android:lineSpacingExtra="4dp"
+                android:padding="12dp"
                 android:text="Belum ada ulasan untuk buku ini.\nJadilah pembaca pertama yang memberikan ulasan!"
                 android:textColor="@color/text_secondary"
                 android:textSize="13sp" />

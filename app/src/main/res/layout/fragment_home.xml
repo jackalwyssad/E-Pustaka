@@ -24,7 +24,7 @@
                 android:layout_height="wrap_content"
                 app:cardBackgroundColor="@color/surface"
                 app:cardCornerRadius="0dp"
-                app:cardElevation="2dp"
+                app:cardElevation="0dp"
                 app:strokeWidth="0dp">
 
                 <LinearLayout
@@ -33,7 +33,7 @@
                     android:orientation="vertical"
                     android:paddingHorizontal="20dp"
                     android:paddingTop="20dp"
-                    android:paddingBottom="16dp">
+                    android:paddingBottom="18dp">
 
                     <RelativeLayout
                         android:layout_width="match_parent"
@@ -44,24 +44,27 @@
                             android:layout_height="wrap_content"
                             android:layout_alignParentStart="true"
                             android:layout_centerVertical="true"
+                            android:layout_marginEnd="12dp"
+                            android:layout_toStartOf="@id/layoutStreak"
                             android:orientation="vertical">
 
                             <TextView
                                 android:id="@+id/tvGreeting"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
+                                android:letterSpacing="-0.01"
                                 android:text="Halo, Pembaca"
                                 android:textColor="@color/text_primary"
-                                android:textSize="18sp"
+                                android:textSize="20sp"
                                 android:textStyle="bold" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
+                                android:layout_marginTop="3dp"
                                 android:text="Apa yang ingin kamu baca hari ini?"
                                 android:textColor="@color/text_secondary"
-                                android:textSize="12sp" />
+                                android:textSize="13sp" />
                         </LinearLayout>
 
                         <!-- Streak Badge -->
@@ -74,8 +77,8 @@
                             android:background="@drawable/bg_chip"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingHorizontal="10dp"
-                            android:paddingVertical="6dp">
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="7dp">
 
                             <ImageView
                                 android:layout_width="18dp"
@@ -87,7 +90,7 @@
                                 android:id="@+id/tvStreakDays"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginStart="4dp"
+                                android:layout_marginStart="5dp"
                                 android:text="0 Hari"
                                 android:textColor="@color/streak_fire"
                                 android:textSize="12sp"
@@ -99,12 +102,12 @@
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/cardSearchShortcut"
                         android:layout_width="match_parent"
-                        android:layout_height="48dp"
+                        android:layout_height="50dp"
                         android:layout_marginTop="16dp"
                         android:clickable="true"
                         android:focusable="true"
                         app:cardBackgroundColor="@color/surface_variant"
-                        app:cardCornerRadius="12dp"
+                        app:cardCornerRadius="14dp"
                         app:cardElevation="0dp"
                         app:strokeColor="@color/outline"
                         app:strokeWidth="1dp">
@@ -114,7 +117,7 @@
                             android:layout_height="match_parent"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingHorizontal="14dp">
+                            android:paddingHorizontal="16dp">
 
                             <ImageView
                                 android:layout_width="20dp"
@@ -126,14 +129,19 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginStart="10dp"
+                                android:layout_marginStart="12dp"
                                 android:text="Cari judul buku, penulis, atau topik..."
                                 android:textColor="@color/text_secondary"
-                                android:textSize="13sp" />
+                                android:textSize="14sp" />
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/outline" />
 
             <!-- Kategori Chips RecyclerView -->
             <TextView
@@ -141,19 +149,20 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="20dp"
                 android:layout_marginTop="20dp"
+                android:letterSpacing="-0.01"
                 android:text="Kategori Pilihan"
                 android:textColor="@color/text_primary"
-                android:textSize="16sp"
+                android:textSize="17sp"
                 android:textStyle="bold" />
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvCategories"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="12dp"
                 android:clipToPadding="false"
                 android:orientation="horizontal"
-                android:paddingHorizontal="16dp"
+                android:paddingHorizontal="20dp"
                 tools:listitem="@layout/item_category_chip" />
 
             <!-- Terpopuler Section -->
@@ -167,20 +176,21 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="20dp"
-                    android:layout_marginTop="20dp"
+                    android:layout_marginTop="24dp"
+                    android:letterSpacing="-0.01"
                     android:text="Buku Terpopuler"
                     android:textColor="@color/text_primary"
-                    android:textSize="16sp"
+                    android:textSize="17sp"
                     android:textStyle="bold" />
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rvPopularBooks"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="12dp"
                     android:clipToPadding="false"
                     android:orientation="horizontal"
-                    android:paddingHorizontal="16dp"
+                    android:paddingHorizontal="20dp"
                     tools:listitem="@layout/item_popular_book" />
             </LinearLayout>
 
@@ -190,19 +200,20 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="20dp"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="24dp"
+                android:letterSpacing="-0.01"
                 android:text="Koleksi Buku"
                 android:textColor="@color/text_primary"
-                android:textSize="16sp"
+                android:textSize="17sp"
                 android:textStyle="bold" />
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvBooks"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="12dp"
                 android:nestedScrollingEnabled="false"
-                android:paddingHorizontal="16dp"
+                android:paddingHorizontal="20dp"
                 tools:listitem="@layout/item_book" />
 
             <!-- Empty State -->
@@ -210,8 +221,10 @@
                 android:id="@+id/tvEmptyBooks"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginHorizontal="20dp"
                 android:layout_marginTop="32dp"
                 android:gravity="center"
+                android:padding="16dp"
                 android:text="Belum ada buku pada kategori ini."
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp"

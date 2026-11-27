@@ -3,10 +3,10 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="10dp"
+    android:layout_marginBottom="12dp"
     app:cardBackgroundColor="@color/surface"
-    app:cardCornerRadius="14dp"
-    app:cardElevation="1dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="0dp"
     app:strokeColor="@color/outline"
     app:strokeWidth="1dp">
 
@@ -14,7 +14,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="14dp">
+        android:padding="16dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -24,8 +24,8 @@
 
             <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/ivReviewUserAvatar"
-                android:layout_width="38dp"
-                android:layout_height="38dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:background="@color/primary_light"
                 android:scaleType="centerCrop"
                 android:src="@drawable/ic_person"
@@ -34,7 +34,7 @@
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
+                android:layout_marginStart="12dp"
                 android:layout_weight="1"
                 android:orientation="vertical">
 
@@ -50,7 +50,7 @@
                         android:layout_height="wrap_content"
                         android:text="Nama Pembaca"
                         android:textColor="@color/text_primary"
-                        android:textSize="13sp"
+                        android:textSize="14sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -59,11 +59,11 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
                         android:background="@drawable/bg_badge_primary"
-                        android:paddingHorizontal="6dp"
-                        android:paddingVertical="1dp"
+                        android:paddingHorizontal="7dp"
+                        android:paddingVertical="2dp"
                         android:text="Anda"
                         android:textColor="@color/primary"
-                        android:textSize="10sp"
+                        android:textSize="11sp"
                         android:textStyle="bold"
                         android:visibility="gone" />
                 </LinearLayout>
@@ -72,9 +72,10 @@
                     android:id="@+id/tvReviewDate"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
                     android:text="21 November 2026"
                     android:textColor="@color/text_secondary"
-                    android:textSize="11sp" />
+                    android:textSize="12sp" />
             </LinearLayout>
 
             <!-- Star Rating Indicator -->
@@ -82,35 +83,40 @@
                 android:id="@+id/tvReviewRatingStar"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="⭐ 5"
-                android:textColor="@color/gold_star"
-                android:textSize="13sp"
+                android:background="@drawable/bg_badge_gold"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:text="★ 5"
+                android:textColor="#B45309"
+                android:textSize="12sp"
                 android:textStyle="bold" />
 
             <!-- 3 Dots Menu Button for Owner -->
             <ImageView
                 android:id="@+id/btnReviewMenu"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_marginStart="8dp"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginStart="6dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
-                android:focusable="true"
                 android:contentDescription="Opsi"
+                android:focusable="true"
+                android:padding="2dp"
                 android:src="@drawable/ic_more_vert"
-                app:tint="@color/text_secondary"
-                android:visibility="gone" />
+                android:visibility="gone"
+                app:tint="@color/text_secondary" />
         </LinearLayout>
 
         <TextView
             android:id="@+id/tvReviewContent"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="10dp"
             android:background="@drawable/bg_chip"
-            android:lineSpacingExtra="3dp"
-            android:padding="10dp"
+            android:lineSpacingExtra="4dp"
+            android:padding="12dp"
             android:text="Ulasan yang sangat menarik dan bermanfaat!"
             android:textColor="@color/text_primary"
-            android:textSize="13sp" />
+            android:textSize="14sp" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

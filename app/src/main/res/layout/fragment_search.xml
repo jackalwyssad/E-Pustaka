@@ -13,7 +13,7 @@
         android:layout_height="wrap_content"
         app:cardBackgroundColor="@color/surface"
         app:cardCornerRadius="0dp"
-        app:cardElevation="2dp"
+        app:cardElevation="0dp"
         app:strokeWidth="0dp">
 
         <LinearLayout
@@ -22,7 +22,7 @@
             android:orientation="vertical"
             android:paddingHorizontal="16dp"
             android:paddingTop="16dp"
-            android:paddingBottom="12dp">
+            android:paddingBottom="14dp">
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/tilSearch"
@@ -30,12 +30,15 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="Cari judul, penulis, topik..."
-                app:boxCornerRadiusBottomEnd="12dp"
-                app:boxCornerRadiusBottomStart="12dp"
-                app:boxCornerRadiusTopEnd="12dp"
-                app:boxCornerRadiusTopStart="12dp"
+                app:boxBackgroundColor="@color/surface_variant"
+                app:boxCornerRadiusBottomEnd="14dp"
+                app:boxCornerRadiusBottomStart="14dp"
+                app:boxCornerRadiusTopEnd="14dp"
+                app:boxCornerRadiusTopStart="14dp"
+                app:boxStrokeColor="@color/primary"
                 app:endIconMode="clear_text"
-                app:startIconDrawable="@drawable/ic_search">
+                app:startIconDrawable="@drawable/ic_search"
+                app:startIconTint="@color/text_secondary">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etSearch"
@@ -43,7 +46,9 @@
                     android:layout_height="wrap_content"
                     android:imeOptions="actionSearch"
                     android:inputType="text"
-                    android:singleLine="true" />
+                    android:singleLine="true"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <!-- Kategori Filter -->
@@ -51,12 +56,17 @@
                 android:id="@+id/rvSearchCategories"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="12dp"
                 android:clipToPadding="false"
                 android:orientation="horizontal"
                 tools:listitem="@layout/item_category_chip" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/outline" />
 
     <!-- Search Results / Empty State -->
     <FrameLayout
@@ -69,7 +79,7 @@
             android:layout_height="match_parent"
             android:clipToPadding="false"
             android:paddingHorizontal="16dp"
-            android:paddingVertical="12dp"
+            android:paddingVertical="14dp"
             tools:listitem="@layout/item_book" />
 
         <LinearLayout
@@ -79,12 +89,12 @@
             android:layout_gravity="center"
             android:gravity="center"
             android:orientation="vertical"
-            android:padding="24dp"
+            android:padding="28dp"
             android:visibility="gone">
 
             <ImageView
-                android:layout_width="54dp"
-                android:layout_height="54dp"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
                 android:contentDescription="Empty"
                 android:src="@drawable/ic_search"
                 app:tint="@color/text_secondary" />
@@ -92,7 +102,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="14dp"
                 android:text="Buku tidak ditemukan"
                 android:textColor="@color/text_primary"
                 android:textSize="16sp"
@@ -101,8 +111,9 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="6dp"
                 android:gravity="center"
+                android:lineSpacingExtra="3dp"
                 android:text="Coba gunakan kata kunci lain atau pilih kategori berbeda"
                 android:textColor="@color/text_secondary"
                 android:textSize="13sp" />

@@ -2,14 +2,14 @@
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/cardPopular"
-    android:layout_width="135dp"
+    android:layout_width="148dp"
     android:layout_height="wrap_content"
     android:layout_marginEnd="12dp"
     android:clickable="true"
     android:focusable="true"
     app:cardBackgroundColor="@color/surface"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="2dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="0dp"
     app:strokeColor="@color/outline"
     app:strokeWidth="1dp">
 
@@ -17,14 +17,15 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="8dp">
+        android:padding="10dp">
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
-            android:layout_height="160dp"
-            app:cardCornerRadius="8dp"
+            android:layout_height="172dp"
+            app:cardCornerRadius="10dp"
             app:cardElevation="0dp"
-            app:strokeWidth="0dp">
+            app:strokeColor="@color/outline"
+            app:strokeWidth="1dp">
 
             <ImageView
                 android:id="@+id/ivPopularCover"
@@ -38,23 +39,24 @@
             android:id="@+id/tvPopularTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="10dp"
             android:ellipsize="end"
-            android:maxLines="1"
+            android:lineSpacingExtra="2dp"
+            android:maxLines="2"
             android:text="Judul Buku"
             android:textColor="@color/text_primary"
-            android:textSize="13sp"
+            android:textSize="14sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/tvPopularAuthor"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="1dp"
+            android:layout_marginTop="2dp"
             android:ellipsize="end"
             android:maxLines="1"
             android:text="Penulis"
             android:textColor="@color/text_secondary"
-            android:textSize="11sp" />
+            android:textSize="12sp" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

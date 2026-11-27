@@ -97,7 +97,7 @@ class BookDetailActivity : AppCompatActivity() {
     private fun setupButtons() {
         binding.btnContinueReading.setOnClickListener {
             val loan = activeLoan ?: return@setOnClickListener
-            val pdfTarget = if (loan.urlPdf.isNotBlank()) loan.urlPdf else (currentBook?.urlPdf ?: "")
+            val pdfTarget = if (!currentBook?.urlPdf.isNullOrBlank()) currentBook!!.urlPdf else loan.urlPdf
             openPdfReader(
                 pdfUrl = pdfTarget,
                 isPreview = false,

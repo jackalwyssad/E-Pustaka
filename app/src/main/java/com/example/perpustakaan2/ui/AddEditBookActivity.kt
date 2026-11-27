@@ -217,12 +217,20 @@ class AddEditBookActivity : AppCompatActivity() {
     }
 
     private fun handlePickedPdf(uri: Uri) {
-        setUploadProgress(true, "Mengunggah berkas PDF ke Cloud...")
+        setUploadProgress(true, "Menyiapkan dan mengunggah berkas PDF ke Cloud...")
         lifecycleScope.launch {
             try {
                 val inputStream = contentResolver.openInputStream(uri) ?: return@launch
                 val localFile = File(filesDir, "doc_${System.currentTimeMillis()}.pdf")
                 FileOutputStream(localFile).use { inputStream.copyTo(it) }
+
+                // Hitung jumlah halaman langsung dari file lokal (Cepat & Akurat tanpa unduh jaringan)
+                val detectedPages = PdfRendererHelper.countPagesInLocalFile(localFile)
+                if (detectedPages > 0) {
+                    binding.etBookPages.setText(detectedPages.toString())
+                    binding.tvPdfPageNotice.visibility = View.VISIBLE
+                    binding.tvPdfPageNotice.text = "Otomatis terdeteksi: $detectedPages halaman"
+                }
 
                 // Unggah ke Cloud Storage (Gratis, tanpa perlu kartu kredit / Firebase Blaze)
                 val uploadRes = CloudUploader.uploadFile(localFile, "application/pdf")
@@ -238,10 +246,14 @@ class AddEditBookActivity : AppCompatActivity() {
                     }
                 }
 
+                // Simpan salinan ke cache PdfRendererHelper agar perangkat ini langsung bisa membaca tanpa unduh ulang
+                if (finalUrl.startsWith("http://") || finalUrl.startsWith("https://")) {
+                    PdfRendererHelper.saveToCache(this@AddEditBookActivity, finalUrl, localFile)
+                }
+
                 pdfPathOrUrl = finalUrl
                 binding.etPdfUrl.setText(finalUrl)
-                binding.tvPdfStatus.text = if (finalUrl.startsWith("http")) "Dokumen Cloud: Berhasil diunggah" else "Dokumen: ${localFile.name}"
-                detectPdfPages(finalUrl)
+                binding.tvPdfStatus.text = if (finalUrl.startsWith("http")) "Dokumen Cloud: Berhasil terpasang" else "Dokumen: ${localFile.name}"
 
                 if (finalUrl.startsWith("http://") || finalUrl.startsWith("https://")) {
                     Toast.makeText(this@AddEditBookActivity, "File PDF berhasil diunggah ke Cloud!", Toast.LENGTH_SHORT).show()
@@ -261,6 +273,7 @@ class AddEditBookActivity : AppCompatActivity() {
     }
 
     private fun detectPdfPages(source: String) {
+        if (source.isBlank()) return
         binding.tvPdfPageNotice.visibility = View.VISIBLE
         binding.tvPdfPageNotice.text = "Memeriksa jumlah halaman PDF..."
         lifecycleScope.launch {
@@ -300,6 +313,12 @@ class AddEditBookActivity : AppCompatActivity() {
         val selectedCat = categoryList.find { it.namaKategori == selectedCatName }
         val categoryId = selectedCat?.id ?: ""
 
+        val inputPdf = binding.etPdfUrl.text.toString().trim()
+        val finalPdfUrl = if (inputPdf.isNotEmpty()) inputPdf else pdfPathOrUrl
+
+        val inputCover = binding.etCoverUrl.text.toString().trim()
+        val finalCoverUrl = if (inputCover.isNotEmpty()) inputCover else coverPathOrUrl
+
         val bookToSave = (existingBook ?: Book()).copy(
             id = editingBookId ?: existingBook?.id ?: "",
             judul = title,
@@ -307,8 +326,8 @@ class AddEditBookActivity : AppCompatActivity() {
             sinopsis = synopsis,
             kategoriId = categoryId,
             namaKategori = selectedCatName,
-            urlSampul = coverPathOrUrl,
-            urlPdf = pdfPathOrUrl,
+            urlSampul = finalCoverUrl,
+            urlPdf = finalPdfUrl,
             jumlahHalaman = pages,
             stokAwal = stock,
             stokTersedia = stock,

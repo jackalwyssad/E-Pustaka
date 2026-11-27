@@ -208,13 +208,14 @@ class PdfReaderActivity : AppCompatActivity() {
         binding.pbPdfLoading.visibility = View.VISIBLE
 
         lifecycleScope.launch {
-            // Jika pdfUrl kosong, coba ambil dari bookRepository berdasarkan bookId
-            if (pdfUrl.isBlank() && bookId.isNotBlank()) {
+            // Selalu ambil informasi buku terbaru dari database jika bookId tersedia
+            // Ini memastikan jika buku baru saja di-edit dengan PDF baru oleh admin, PDF terbaru yang akan dibuka
+            if (bookId.isNotBlank()) {
                 val bookRes = bookRepository.getBookById(bookId)
                 val book = bookRes.getOrNull()
                 if (book != null && book.urlPdf.isNotBlank()) {
                     pdfUrl = book.urlPdf
-                    if (bookTitle == "Membaca Buku" && book.judul.isNotBlank()) {
+                    if (book.judul.isNotBlank()) {
                         bookTitle = book.judul
                         binding.toolbarReader.title = if (isPreview) "$bookTitle (Cuplikan 20%)" else bookTitle
                     }

@@ -1,16 +1,22 @@
 package com.example.perpustakaan2.ui.fragment
 
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import coil.imageLoader
 import coil.load
+import coil.request.ImageRequest
 import coil.transform.CircleCropTransformation
 import com.example.perpustakaan2.R
 import com.example.perpustakaan2.data.model.User
@@ -20,7 +26,12 @@ import com.example.perpustakaan2.ui.AdminDashboardActivity
 import com.example.perpustakaan2.ui.FavoritesActivity
 import com.example.perpustakaan2.ui.LoginActivity
 import com.example.perpustakaan2.ui.ReadingHistoryActivity
+import com.example.perpustakaan2.util.CloudUploader
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 
 class ProfileFragment : Fragment() {
 
@@ -29,6 +40,10 @@ class ProfileFragment : Fragment() {
 
     private val authRepository = AuthRepository()
     private var currentUserData: User? = null
+
+    private val pickAvatarLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { handlePickedAvatar(it) }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -46,9 +61,16 @@ class ProfileFragment : Fragment() {
     }
 
     private fun setupListeners() {
-        binding.btnChangeAvatar.setOnClickListener {
-            showChangeAvatarDialog()
+        val openGallery = View.OnClickListener {
+            if (authRepository.currentUser == null) {
+                Toast.makeText(requireContext(), "Silakan masuk akun untuk mengubah foto profil", Toast.LENGTH_SHORT).show()
+                return@OnClickListener
+            }
+            pickAvatarLauncher.launch("image/*")
         }
+
+        binding.btnChangeAvatar.setOnClickListener(openGallery)
+        binding.ivAvatar.setOnClickListener(openGallery)
 
         binding.btnEditName.setOnClickListener {
             showChangeNameDialog()
@@ -155,60 +177,96 @@ class ProfileFragment : Fragment() {
             .show()
     }
 
-    private fun showChangeAvatarDialog() {
-        val options = arrayOf(
-            "Avatar Pustakawan (Pria)",
-            "Avatar Pustakawan (Wanita)",
-            "Avatar Kucing Pembaca",
-            "Avatar Robot Pintar",
-            "Masukkan URL Foto Kustom"
-        )
-        val urls = arrayOf(
-            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300",
-            "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300",
-            "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=300",
-            "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=300"
-        )
+    private fun handlePickedAvatar(uri: Uri) {
+        val uid = authRepository.currentUser?.uid ?: return
+        val ctx = requireContext()
 
-        AlertDialog.Builder(requireContext())
-            .setTitle("Pilih Foto Profil Baru")
-            .setItems(options) { _, which ->
-                val uid = authRepository.currentUser?.uid ?: return@setItems
-                if (which < 4) {
-                    val selectedUrl = urls[which]
-                    updateAvatarUrl(uid, selectedUrl)
-                } else {
-                    val input = EditText(requireContext()).apply {
-                        hint = "https://example.com/avatar.jpg"
+        binding.btnChangeAvatar.isEnabled = false
+        Toast.makeText(ctx, "Mengunggah foto profil...", Toast.LENGTH_SHORT).show()
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val localFile = File(ctx.filesDir, "avatar_${System.currentTimeMillis()}.jpg")
+                withContext(Dispatchers.IO) {
+                    compressAvatarImage(uri, localFile)
+                }
+
+                // Tampilkan langsung foto baru secara instan
+                if (_binding != null) {
+                    binding.ivAvatar.load(localFile) {
+                        crossfade(true)
+                        transformations(CircleCropTransformation())
                     }
-                    AlertDialog.Builder(requireContext())
-                        .setTitle("URL Foto Profil")
-                        .setView(input)
-                        .setPositiveButton("Simpan") { _, _ ->
-                            val url = input.text.toString().trim()
-                            if (url.isNotBlank()) {
-                                updateAvatarUrl(uid, url)
+                }
+
+                // Unggah ke Cloud gratis agar tampil di semua perangkat & ulasan
+                val uploadRes = CloudUploader.uploadFile(localFile, "image/jpeg")
+                uploadRes.fold(
+                    onSuccess = { finalUrl ->
+                        ctx.imageLoader.enqueue(
+                            ImageRequest.Builder(ctx).data(finalUrl).build()
+                        )
+                        val updateRes = authRepository.updateProfilePhoto(uid, finalUrl)
+                        updateRes.fold(
+                            onSuccess = {
+                                Toast.makeText(ctx, "Foto profil berhasil diperbarui", Toast.LENGTH_SHORT).show()
+                                observeUserData()
+                            },
+                            onFailure = { e ->
+                                Toast.makeText(ctx, "Gagal menyimpan profil: ${e.message}", Toast.LENGTH_SHORT).show()
                             }
-                        }
-                        .setNegativeButton("Batal", null)
-                        .show()
+                        )
+                    },
+                    onFailure = { e ->
+                        Toast.makeText(ctx, "Gagal mengunggah foto: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            } catch (e: Exception) {
+                Toast.makeText(ctx, "Gagal memproses foto: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                if (_binding != null) {
+                    binding.btnChangeAvatar.isEnabled = true
                 }
             }
-            .show()
+        }
     }
 
-    private fun updateAvatarUrl(uid: String, url: String) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            val result = authRepository.updateProfilePhoto(uid, url)
-            result.fold(
-                onSuccess = {
-                    Toast.makeText(requireContext(), "Foto profil berhasil diperbarui", Toast.LENGTH_SHORT).show()
-                    observeUserData()
-                },
-                onFailure = { e ->
-                    Toast.makeText(requireContext(), "Gagal: ${e.message}", Toast.LENGTH_SHORT).show()
+    private fun compressAvatarImage(uri: Uri, targetFile: File) {
+        val resolver = requireContext().contentResolver
+        try {
+            val boundsOpts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, boundsOpts) }
+
+            val maxDim = 400
+            var sampleSize = 1
+            while (boundsOpts.outWidth / sampleSize > maxDim * 2 || boundsOpts.outHeight / sampleSize > maxDim * 2) {
+                sampleSize *= 2
+            }
+
+            val decodeOpts = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+            val decoded = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, decodeOpts) }
+
+            if (decoded != null) {
+                val ratio = minOf(maxDim.toFloat() / decoded.width, maxDim.toFloat() / decoded.height, 1f)
+                val targetW = (decoded.width * ratio).toInt().coerceAtLeast(1)
+                val targetH = (decoded.height * ratio).toInt().coerceAtLeast(1)
+                val scaled = if (ratio < 1f) {
+                    Bitmap.createScaledBitmap(decoded, targetW, targetH, true).also {
+                        if (it !== decoded) decoded.recycle()
+                    }
+                } else {
+                    decoded
                 }
-            )
+                FileOutputStream(targetFile).use { out ->
+                    scaled.compress(Bitmap.CompressFormat.JPEG, 82, out)
+                }
+                scaled.recycle()
+                return
+            }
+        } catch (_: Exception) {}
+
+        resolver.openInputStream(uri)?.use { input ->
+            FileOutputStream(targetFile).use { output -> input.copyTo(output) }
         }
     }
 

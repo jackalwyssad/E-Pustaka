@@ -17,7 +17,6 @@ class ManageCategoryAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(category: Category) {
-            binding.tvCategoryEmoji.text = category.icon.ifBlank { "📚" }
             binding.tvCategoryName.text = category.name
 
             binding.btnEditCategory.setOnClickListener { onEditClick(category) }

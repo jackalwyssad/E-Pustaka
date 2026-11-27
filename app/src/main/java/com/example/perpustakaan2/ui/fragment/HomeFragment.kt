@@ -97,16 +97,16 @@ class HomeFragment : Fragment() {
                 val res = authRepository.getUserProfile(currentUser.uid)
                 res.fold(
                     onSuccess = { user ->
-                        binding.tvGreeting.text = "Halo, ${user.nama.ifBlank { "Pembaca" }}! 👋"
+                        binding.tvGreeting.text = "Halo, ${user.nama.ifBlank { "Pembaca" }}"
                         binding.tvStreakDays.text = "${user.streakHari} Hari"
                     },
                     onFailure = {
-                        binding.tvGreeting.text = "Halo, ${currentUser.displayName ?: "Pembaca"}! 👋"
+                        binding.tvGreeting.text = "Halo, ${currentUser.displayName ?: "Pembaca"}"
                     }
                 )
             }
         } else {
-            binding.tvGreeting.text = "Halo, Tamu! 👋"
+            binding.tvGreeting.text = "Halo, Tamu"
             binding.tvStreakDays.text = "0 Hari"
         }
 

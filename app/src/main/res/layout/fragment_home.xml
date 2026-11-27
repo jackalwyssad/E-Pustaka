@@ -50,7 +50,7 @@
                                 android:id="@+id/tvGreeting"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Halo, Pembaca! 👋"
+                                android:text="Halo, Pembaca"
                                 android:textColor="@color/text_primary"
                                 android:textSize="18sp"
                                 android:textStyle="bold" />
@@ -168,7 +168,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="20dp"
                     android:layout_marginTop="20dp"
-                    android:text="🔥 Terpopuler di E-Pustaka"
+                    android:text="Buku Terpopuler"
                     android:textColor="@color/text_primary"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -191,7 +191,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="20dp"
                 android:layout_marginTop="20dp"
-                android:text="📖 Koleksi Buku"
+                android:text="Koleksi Buku"
                 android:textColor="@color/text_primary"
                 android:textSize="16sp"
                 android:textStyle="bold" />

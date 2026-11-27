@@ -70,14 +70,12 @@ class ManageCategoriesActivity : AppCompatActivity() {
         if (isEdit) {
             dialogBinding.tvDialogCategoryTitle.text = "Edit Kategori"
             dialogBinding.etDialogCategoryName.setText(existing!!.namaKategori)
-            dialogBinding.etDialogCategoryEmoji.setText(existing.iconEmoji)
         }
 
         AlertDialog.Builder(this)
             .setView(dialogBinding.root)
             .setPositiveButton("Simpan") { _, _ ->
                 val name = dialogBinding.etDialogCategoryName.text.toString().trim()
-                val icon = dialogBinding.etDialogCategoryEmoji.text.toString().trim().ifBlank { "📚" }
 
                 if (name.isEmpty()) {
                     Toast.makeText(this, "Nama kategori tidak boleh kosong", Toast.LENGTH_SHORT).show()
@@ -86,9 +84,9 @@ class ManageCategoriesActivity : AppCompatActivity() {
 
                 lifecycleScope.launch {
                     val res = if (isEdit) {
-                        categoryRepository.updateCategory(existing!!.copy(namaKategori = name, iconEmoji = icon))
+                        categoryRepository.updateCategory(existing!!.copy(namaKategori = name, iconEmoji = ""))
                     } else {
-                        categoryRepository.addCategory(Category(namaKategori = name, iconEmoji = icon))
+                        categoryRepository.addCategory(Category(namaKategori = name, iconEmoji = ""))
                     }
 
                     res.fold(

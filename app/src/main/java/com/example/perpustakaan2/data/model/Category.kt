@@ -5,7 +5,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 data class Category(
     val id: String = "",
     val namaKategori: String = "",
-    val iconEmoji: String = "📚"
+    val iconEmoji: String = ""
 ) {
     val name: String get() = namaKategori
     val icon: String get() = iconEmoji
@@ -16,7 +16,7 @@ data class Category(
             return Category(
                 id = doc.id,
                 namaKategori = data["namaKategori"]?.toString() ?: "",
-                iconEmoji = data["iconEmoji"]?.toString()?.ifBlank { "📚" } ?: "📚"
+                iconEmoji = data["iconEmoji"]?.toString() ?: ""
             )
         }
     }

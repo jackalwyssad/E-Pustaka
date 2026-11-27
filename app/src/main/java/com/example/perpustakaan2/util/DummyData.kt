@@ -6,10 +6,10 @@ import com.example.perpustakaan2.data.model.Category
 object DummyData {
 
     val sampleCategories = listOf(
-        Category(id = "cat_tech", namaKategori = "Teknologi", iconEmoji = "💻"),
-        Category(id = "cat_science", namaKategori = "Sains & Alam", iconEmoji = "🔬"),
-        Category(id = "cat_literature", namaKategori = "Sastra & Fiksi", iconEmoji = "📚"),
-        Category(id = "cat_business", namaKategori = "Bisnis & Karir", iconEmoji = "💼")
+        Category(id = "cat_tech", namaKategori = "Teknologi", iconEmoji = ""),
+        Category(id = "cat_science", namaKategori = "Sains & Alam", iconEmoji = ""),
+        Category(id = "cat_literature", namaKategori = "Sastra & Fiksi", iconEmoji = ""),
+        Category(id = "cat_business", namaKategori = "Bisnis & Karir", iconEmoji = "")
     )
 
     val sampleBooks = listOf(

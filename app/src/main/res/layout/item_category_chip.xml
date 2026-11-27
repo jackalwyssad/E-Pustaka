@@ -7,9 +7,9 @@
     android:background="@drawable/bg_chip"
     android:clickable="true"
     android:focusable="true"
-    android:paddingHorizontal="14dp"
+    android:paddingHorizontal="16dp"
     android:paddingVertical="8dp"
-    android:text="💻 Teknologi"
+    android:text="Teknologi"
     android:textColor="@color/text_primary"
-    android:textSize="12sp"
+    android:textSize="13sp"
     android:textStyle="normal" />

@@ -29,7 +29,7 @@ class CategoryChipAdapter(
     override fun onBindViewHolder(holder: CategoryViewHolder, position: Int) {
         if (position == 0) {
             val isSelected = selectedCategoryId == null
-            holder.binding.tvCategoryChip.text = "📚 Semua"
+            holder.binding.tvCategoryChip.text = "Semua"
             updateChipStyle(holder.binding, isSelected)
             holder.binding.tvCategoryChip.setOnClickListener {
                 selectedCategoryId = null
@@ -39,7 +39,7 @@ class CategoryChipAdapter(
         } else {
             val category = categories[position - 1]
             val isSelected = selectedCategoryId == category.id
-            holder.binding.tvCategoryChip.text = "${category.iconEmoji} ${category.namaKategori}"
+            holder.binding.tvCategoryChip.text = category.namaKategori
             updateChipStyle(holder.binding, isSelected)
             holder.binding.tvCategoryChip.setOnClickListener {
                 selectedCategoryId = if (selectedCategoryId == category.id) null else category.id

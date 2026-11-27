@@ -314,7 +314,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="🕒 0 pembaca sedang dalam antrian pinjam."
+                        android:text="0 pembaca sedang dalam antrian pinjam."
                         android:textColor="@color/text_secondary"
                         android:textSize="11sp" />
 
@@ -323,7 +323,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="⚡ Tersedia 3 slot Sesi Kilat (bisa langsung baca 2 jam tanpa antri)."
+                        android:text="Tersedia 3 slot Sesi Kilat (langsung baca 2 jam tanpa antri)."
                         android:textColor="@color/primary"
                         android:textSize="11sp"
                         android:textStyle="bold" />

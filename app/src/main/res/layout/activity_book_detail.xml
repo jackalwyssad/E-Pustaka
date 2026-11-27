@@ -518,6 +518,7 @@
                     android:text="Beri Ulasan"
                     android:textSize="12sp"
                     android:textStyle="bold"
+                    android:visibility="gone"
                     app:cornerRadius="19dp" />
             </RelativeLayout>
 

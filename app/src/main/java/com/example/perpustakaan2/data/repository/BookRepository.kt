@@ -247,6 +247,21 @@ class BookRepository(
 
     suspend fun addReview(review: Review): Result<Unit> {
         return try {
+            val loanDocs = firestore.collection(Constants.COLLECTION_LOANS)
+                .whereEqualTo("userId", review.userId)
+                .whereEqualTo("bookId", review.bookId)
+                .get()
+                .await()
+
+            val hasBorrowed = loanDocs.documents.any { doc ->
+                val tipe = doc.getString("tipe") ?: ""
+                tipe == Constants.TIPE_PINJAM || tipe == Constants.TIPE_KILAT
+            }
+
+            if (!hasBorrowed) {
+                return Result.failure(Exception("Hanya pembaca yang pernah meminjam buku atau menggunakan Sesi Kilat yang dapat memberikan ulasan."))
+            }
+
             val reviewRef = reviewsCollection.document()
             reviewRef.set(review.copy(id = reviewRef.id)).await()
             recalculateBookRating(review.bookId)

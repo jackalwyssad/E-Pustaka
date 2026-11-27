@@ -46,6 +46,7 @@ class BookDetailActivity : AppCompatActivity() {
     private var activeLoan: Loan? = null
     private var activeQueue: QueueEntry? = null
     private var isFavorite: Boolean = false
+    private var canWriteReview: Boolean = false
     private var bookDeletedListener: ListenerRegistration? = null
 
     private lateinit var reviewAdapter: ReviewAdapter
@@ -233,6 +234,10 @@ class BookDetailActivity : AppCompatActivity() {
                 Toast.makeText(this, "Silakan login untuk menulis ulasan", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
+            if (!canWriteReview) {
+                Toast.makeText(this, "Anda hanya dapat memberi ulasan setelah meminjam buku atau menggunakan Sesi Kilat.", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
             showReviewDialog(null)
         }
     }
@@ -283,6 +288,15 @@ class BookDetailActivity : AppCompatActivity() {
                 loanRepository.getActiveLoansFlow(currentUid).collectLatest { loans ->
                     activeLoan = loans.find { it.bookId == bookId }
                     updateLoanAndQueueUI()
+                }
+            }
+
+            lifecycleScope.launch {
+                loanRepository.getLoanHistoryFlow(currentUid).collectLatest { allLoans ->
+                    canWriteReview = allLoans.any {
+                        it.bookId == bookId && (it.tipe == Constants.TIPE_PINJAM || it.tipe == Constants.TIPE_KILAT)
+                    }
+                    binding.btnAddReview.visibility = if (canWriteReview) View.VISIBLE else View.GONE
                 }
             }
 

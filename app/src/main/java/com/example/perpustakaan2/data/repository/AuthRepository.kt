@@ -202,15 +202,25 @@ class AuthRepository(
     }
 
     suspend fun updateProfileName(userId: String, newName: String): Result<Unit> {
-        if (userId == "admin_master_epustaka") {
-            return Result.success(Unit)
-        }
         return try {
-            firestore.collection(Constants.COLLECTION_USERS).document(userId)
-                .update("nama", newName).await()
+            if (userId != "admin_master_epustaka") {
+                firestore.collection(Constants.COLLECTION_USERS).document(userId)
+                    .update("nama", newName).await()
+            }
+
+            try {
+                val userReviews = firestore.collection(Constants.COLLECTION_REVIEWS)
+                    .whereEqualTo("userId", userId)
+                    .get()
+                    .await()
+                for (doc in userReviews.documents) {
+                    doc.reference.update("namaUser", newName).await()
+                }
+            } catch (_: Exception) {}
+
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception("Gagal memperbarui nama profil: ${Constants.translateError(e)}"))
         }
     }
 

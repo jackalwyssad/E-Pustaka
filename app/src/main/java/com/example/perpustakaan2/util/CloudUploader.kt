@@ -1,7 +1,9 @@
 package com.example.perpustakaan2.util
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.Dns
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -9,99 +11,215 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
 import org.json.JSONObject
 import java.io.File
+import java.net.Inet4Address
+import java.net.InetAddress
 import java.util.concurrent.TimeUnit
 
 object CloudUploader {
 
+    private const val BROWSER_USER_AGENT =
+        "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+    private const val APP_USER_AGENT = "EPustaka/1.0 (Android)"
+
+    /**
+     * Prefer IPv4 addresses before IPv6 to avoid long connection stalls on dual-stack
+     * mobile networks with broken IPv6 routing.
+     */
+    private val ipv4FirstDns = object : Dns {
+        override fun lookup(hostname: String): List<InetAddress> {
+            val addresses = Dns.SYSTEM.lookup(hostname)
+            return addresses.sortedBy { if (it is Inet4Address) 0 else 1 }
+        }
+    }
+
     val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
+        .dns(ipv4FirstDns)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .writeTimeout(90, TimeUnit.SECONDS)
+        .readTimeout(90, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
         .followRedirects(true)
         .followSslRedirects(true)
         .build()
 
+    private data class UploadTarget(
+        val name: String,
+        val uploader: (File, String) -> Result<String>
+    )
+
+    private val uploadTargets = listOf(
+        UploadTarget("Catbox", ::uploadToCatbox),
+        UploadTarget("0x0.st", ::uploadTo0x0),
+        UploadTarget("Pomf", ::uploadToPomf),
+        UploadTarget("Qu.ax", ::uploadToQuax),
+        UploadTarget("Tmpfiles", ::uploadToTmpfiles)
+    )
+
     suspend fun uploadFile(file: File, mimeType: String): Result<String> = withContext(Dispatchers.IO) {
-        // 1. Coba Catbox.moe terlebih dahulu
-        val catboxRes = uploadToCatbox(file, mimeType)
-        if (catboxRes.isSuccess) {
-            return@withContext catboxRes
+        if (!file.exists() || !file.isFile || file.length() <= 0L) {
+            return@withContext Result.failure(
+                IllegalArgumentException("Berkas lokal tidak ditemukan atau kosong (${file.name})")
+            )
         }
 
-        // 2. Jika Catbox gagal, coba tmpfiles.org sebagai cadangan
-        val tmpfilesRes = uploadToTmpfiles(file, mimeType)
-        if (tmpfilesRes.isSuccess) {
-            return@withContext tmpfilesRes
+        val errors = mutableListOf<String>()
+        for (target in uploadTargets) {
+            val result = target.uploader(file, mimeType)
+            if (result.isSuccess) {
+                return@withContext result
+            }
+            val reason = result.exceptionOrNull()?.let { it.message ?: it.javaClass.simpleName } ?: "gagal"
+            errors.add("${target.name}: $reason")
         }
 
-        // Jika semua gagal, kembalikan rincian error
-        val errCatbox = catboxRes.exceptionOrNull()?.message ?: "Gagal Catbox"
-        val errTmp = tmpfilesRes.exceptionOrNull()?.message ?: "Gagal Tmpfiles"
-        Result.failure(Exception("Gagal mengunggah berkas ke Cloud. Catbox: $errCatbox | Tmpfiles: $errTmp"))
+        Result.failure(
+            Exception("Gagal mengunggah berkas ke semua server cloud (${errors.joinToString("; ")})")
+        )
+    }
+
+    private fun executeUpload(
+        hostLabel: String,
+        request: Request,
+        parseUrl: (String) -> Result<String>
+    ): Result<String> {
+        return try {
+            client.newCall(request).execute().use { response ->
+                val bodyStr = response.body?.string()?.trim().orEmpty()
+                if (!response.isSuccessful) {
+                    return Result.failure(Exception("HTTP ${response.code}"))
+                }
+                if (bodyStr.isEmpty()) {
+                    return Result.failure(Exception("Respon $hostLabel kosong"))
+                }
+                parseUrl(bodyStr)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun validateDirectUrl(hostLabel: String, rawUrl: String): Result<String> {
+        val url = rawUrl.trim()
+        val isHttp = url.startsWith("https://") || url.startsWith("http://")
+        val looksLikeHtml = url.contains("<") || url.contains(">") || url.any { it.isWhitespace() }
+        return if (isHttp && !looksLikeHtml) {
+            Result.success(url)
+        } else {
+            Result.failure(Exception("Respon $hostLabel tidak valid"))
+        }
     }
 
     private fun uploadToCatbox(file: File, mimeType: String): Result<String> {
-        return try {
-            val fileBody = file.asRequestBody(mimeType.toMediaTypeOrNull())
-            val requestBody = MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart("reqtype", "fileupload")
-                .addFormDataPart("fileToUpload", file.name, fileBody)
-                .build()
+        val fileBody = file.asRequestBody(mimeType.toMediaTypeOrNull())
+        val requestBody = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("reqtype", "fileupload")
+            .addFormDataPart("fileToUpload", file.name, fileBody)
+            .build()
 
-            val request = Request.Builder()
-                .url("https://catbox.moe/user/api.php")
-                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36")
-                .post(requestBody)
-                .build()
+        val request = Request.Builder()
+            .url("https://catbox.moe/user/api.php")
+            .header("User-Agent", BROWSER_USER_AGENT)
+            .post(requestBody)
+            .build()
 
-            val response = client.newCall(request).execute()
-            if (response.isSuccessful) {
-                val url = response.body?.string()?.trim() ?: ""
-                if (url.startsWith("http://") || url.startsWith("https://")) {
-                    Result.success(url)
-                } else {
-                    Result.failure(Exception("Respon Catbox tidak valid: $url"))
-                }
+        return executeUpload("Catbox", request) { body ->
+            validateDirectUrl("Catbox", body)
+        }
+    }
+
+    private fun uploadTo0x0(file: File, mimeType: String): Result<String> {
+        val fileBody = file.asRequestBody(mimeType.toMediaTypeOrNull())
+        val requestBody = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("file", file.name, fileBody)
+            .build()
+
+        val request = Request.Builder()
+            .url("https://0x0.st")
+            .header("User-Agent", APP_USER_AGENT)
+            .post(requestBody)
+            .build()
+
+        return executeUpload("0x0.st", request) { body ->
+            validateDirectUrl("0x0.st", body)
+        }
+    }
+
+    private fun uploadToPomf(file: File, mimeType: String): Result<String> {
+        return uploadToPomfCompatible(
+            hostLabel = "Pomf",
+            endpoint = "https://pomf.lain.la/upload.php",
+            file = file,
+            mimeType = mimeType
+        )
+    }
+
+    private fun uploadToQuax(file: File, mimeType: String): Result<String> {
+        return uploadToPomfCompatible(
+            hostLabel = "Qu.ax",
+            endpoint = "https://qu.ax/upload.php",
+            file = file,
+            mimeType = mimeType
+        )
+    }
+
+    private fun uploadToPomfCompatible(
+        hostLabel: String,
+        endpoint: String,
+        file: File,
+        mimeType: String
+    ): Result<String> {
+        val fileBody = file.asRequestBody(mimeType.toMediaTypeOrNull())
+        val requestBody = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("files[]", file.name, fileBody)
+            .build()
+
+        val request = Request.Builder()
+            .url(endpoint)
+            .header("User-Agent", BROWSER_USER_AGENT)
+            .post(requestBody)
+            .build()
+
+        return executeUpload(hostLabel, request) { body ->
+            val json = JSONObject(body)
+            if (json.optBoolean("success", false)) {
+                val files = json.optJSONArray("files")
+                val url = files?.optJSONObject(0)?.optString("url").orEmpty()
+                validateDirectUrl(hostLabel, url)
             } else {
-                Result.failure(Exception("Catbox HTTP ${response.code}"))
+                val desc = json.optString("description", "API error")
+                Result.failure(Exception("$hostLabel: $desc"))
             }
-        } catch (e: Exception) {
-            Result.failure(e)
         }
     }
 
     private fun uploadToTmpfiles(file: File, mimeType: String): Result<String> {
-        return try {
-            val fileBody = file.asRequestBody(mimeType.toMediaTypeOrNull())
-            val requestBody = MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart("file", file.name, fileBody)
-                .build()
+        val fileBody = file.asRequestBody(mimeType.toMediaTypeOrNull())
+        val requestBody = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("file", file.name, fileBody)
+            .build()
 
-            val request = Request.Builder()
-                .url("https://tmpfiles.org/api/v1/upload")
-                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36")
-                .post(requestBody)
-                .build()
+        val request = Request.Builder()
+            .url("https://tmpfiles.org/api/v1/upload")
+            .header("User-Agent", BROWSER_USER_AGENT)
+            .post(requestBody)
+            .build()
 
-            val response = client.newCall(request).execute()
-            if (response.isSuccessful) {
-                val responseStr = response.body?.string()?.trim() ?: ""
-                val json = JSONObject(responseStr)
-                if (json.optString("status") == "success") {
-                    val rawUrl = json.getJSONObject("data").getString("url")
-                    // Mengubah https://tmpfiles.org/12345/file.ext menjadi https://tmpfiles.org/dl/12345/file.ext untuk unduhan langsung
-                    val directUrl = rawUrl.replace("tmpfiles.org/", "tmpfiles.org/dl/")
-                    Result.success(directUrl)
-                } else {
-                    Result.failure(Exception("Tmpfiles API error: $responseStr"))
-                }
+        return executeUpload("Tmpfiles", request) { body ->
+            val json = JSONObject(body)
+            if (json.optString("status") == "success") {
+                val rawUrl = json.getJSONObject("data").getString("url")
+                // Mengubah https://tmpfiles.org/12345/file.ext menjadi https://tmpfiles.org/dl/12345/file.ext untuk unduhan langsung
+                val directUrl = rawUrl.replaceFirst("tmpfiles.org/", "tmpfiles.org/dl/")
+                validateDirectUrl("Tmpfiles", directUrl)
             } else {
-                Result.failure(Exception("Tmpfiles HTTP ${response.code}"))
+                Result.failure(Exception("Tmpfiles API error"))
             }
-        } catch (e: Exception) {
-            Result.failure(e)
         }
     }
 

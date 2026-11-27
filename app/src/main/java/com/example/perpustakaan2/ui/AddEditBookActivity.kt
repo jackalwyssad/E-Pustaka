@@ -1,8 +1,13 @@
 package com.example.perpustakaan2.ui
 
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
+import android.graphics.Matrix
+import android.media.ExifInterface
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.ArrayAdapter
@@ -24,12 +29,16 @@ import com.example.perpustakaan2.util.CloudUploader
 import com.example.perpustakaan2.util.PdfRendererHelper
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.IOException
 import java.util.UUID
 
 class AddEditBookActivity : AppCompatActivity() {
@@ -50,13 +59,24 @@ class AddEditBookActivity : AppCompatActivity() {
 
     private var coverPathOrUrl: String = ""
     private var pdfPathOrUrl: String = ""
+    private var detectPagesJob: Job? = null
 
-    private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { handlePickedImage(it) }
+    private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri?.let {
+            try {
+                contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (_: Exception) {}
+            handlePickedImage(it)
+        }
     }
 
-    private val pickPdfLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { handlePickedPdf(it) }
+    private val pickPdfLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri?.let {
+            try {
+                contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (_: Exception) {}
+            handlePickedPdf(it)
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -80,15 +100,15 @@ class AddEditBookActivity : AppCompatActivity() {
 
     private fun setupListeners() {
         binding.cardPickCover.setOnClickListener {
-            pickImageLauncher.launch("image/*")
+            pickImageLauncher.launch(arrayOf("image/*"))
         }
 
         binding.cardPickPdf.setOnClickListener {
-            pickPdfLauncher.launch("application/pdf")
+            pickPdfLauncher.launch(arrayOf("application/pdf"))
         }
 
         binding.btnChoosePdf.setOnClickListener {
-            pickPdfLauncher.launch("application/pdf")
+            pickPdfLauncher.launch(arrayOf("application/pdf"))
         }
 
         binding.etCoverUrl.doAfterTextChanged { text ->
@@ -180,36 +200,34 @@ class AddEditBookActivity : AppCompatActivity() {
     private fun handlePickedImage(uri: Uri) {
         setUploadProgress(true, "Mengompresi dan mengunggah sampul...")
         lifecycleScope.launch {
+            val localFile = File(cacheDir, "cover_${System.currentTimeMillis()}.jpg")
             try {
-                val localFile = File(filesDir, "cover_${System.currentTimeMillis()}.jpg")
                 withContext(Dispatchers.IO) {
                     compressCoverImage(uri, localFile)
                 }
 
-                // Tampilkan preview lokal instan sambil menunggu unggah selesai
+                // Tampilkan preview lokal sementara proses unggah berlangsung
                 binding.ivCoverPreview.visibility = View.VISIBLE
                 binding.layoutCoverPlaceholder.visibility = View.GONE
                 binding.ivCoverPreview.load(localFile)
 
-                // Unggah ke Cloud Storage (Gratis, tanpa perlu kartu kredit / Firebase Blaze)
                 val uploadRes = CloudUploader.uploadFile(localFile, "image/jpeg")
-
+                var firebaseErr: String? = null
                 val finalUrl = uploadRes.getOrElse {
                     try {
                         val fileName = "cover_${UUID.randomUUID()}.jpg"
                         val storageRef = FirebaseStorage.getInstance().reference.child("covers/$fileName")
                         storageRef.putFile(Uri.fromFile(localFile)).await()
                         storageRef.downloadUrl.await().toString()
-                    } catch (_: Exception) {
-                        "file://${localFile.absolutePath}"
+                    } catch (fbEx: Exception) {
+                        firebaseErr = fbEx.message ?: fbEx.javaClass.simpleName
+                        null
                     }
                 }
 
-                coverPathOrUrl = finalUrl
-                binding.etCoverUrl.setText(finalUrl)
-
-                if (finalUrl.startsWith("http://") || finalUrl.startsWith("https://")) {
-                    // Pre-warm Coil cache agar sampul langsung tampil instan saat buku diterbitkan
+                if (finalUrl != null && (finalUrl.startsWith("http://") || finalUrl.startsWith("https://"))) {
+                    coverPathOrUrl = finalUrl
+                    binding.etCoverUrl.setText(finalUrl)
                     imageLoader.enqueue(
                         ImageRequest.Builder(this@AddEditBookActivity)
                             .data(finalUrl)
@@ -217,110 +235,232 @@ class AddEditBookActivity : AppCompatActivity() {
                     )
                     Toast.makeText(this@AddEditBookActivity, "Foto sampul berhasil diunggah!", Toast.LENGTH_SHORT).show()
                 } else {
+                    restoreCoverPreview()
+                    val cloudErr = uploadRes.exceptionOrNull()?.message ?: "Tidak diketahui"
+                    val fbDetail = firebaseErr ?: "Tidak tersedia"
                     AlertDialog.Builder(this@AddEditBookActivity)
-                        .setTitle("Tersimpan Offline")
-                        .setMessage("Gagal mengunggah ke Cloud. Gambar tersimpan di memori HP ini.\n\nAgar foto sampul bisa dilihat di HP teman/user lain, Anda juga dapat menempelkan URL gambar online (https://) langsung pada kolom URL.")
+                        .setTitle("Gagal Mengunggah Sampul")
+                        .setMessage("Sampul tidak dapat diunggah ke Cloud.\n\n• Cloud: $cloudErr\n• Firebase Storage: $fbDetail\n\nPeriksa koneksi internet Anda atau tempelkan URL gambar online (https://) langsung pada kolom URL.")
                         .setPositiveButton("Mengerti", null)
                         .show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(this@AddEditBookActivity, "Gagal memproses gambar: ${e.message}", Toast.LENGTH_SHORT).show()
+                restoreCoverPreview()
+                Toast.makeText(this@AddEditBookActivity, "Gagal memproses gambar: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
+                localFile.delete()
                 setUploadProgress(false)
             }
         }
     }
 
+    private fun restoreCoverPreview() {
+        if (coverPathOrUrl.isNotBlank()) {
+            binding.ivCoverPreview.visibility = View.VISIBLE
+            binding.layoutCoverPlaceholder.visibility = View.GONE
+            binding.ivCoverPreview.load(coverPathOrUrl)
+        } else {
+            binding.ivCoverPreview.visibility = View.GONE
+            binding.layoutCoverPlaceholder.visibility = View.VISIBLE
+        }
+    }
+
+    private fun copyUriToFile(uri: Uri, targetFile: File) {
+        val inputStream = contentResolver.openInputStream(uri)
+            ?: throw IOException("Tidak dapat membuka berkas dari penyedia file (InputStream null). Coba pilih berkas dari penyimpanan lokal.")
+        var totalBytes = 0L
+        inputStream.use { input ->
+            FileOutputStream(targetFile).use { output ->
+                val buffer = ByteArray(64 * 1024)
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read == -1) break
+                    output.write(buffer, 0, read)
+                    totalBytes += read
+                }
+                output.flush()
+            }
+        }
+        if (totalBytes <= 0L || !targetFile.exists() || targetFile.length() <= 0L) {
+            targetFile.delete()
+            throw IOException("Berkas yang dipilih kosong (0 byte).")
+        }
+    }
+
+    private fun decodeSampledBitmap(file: File, maxDim: Int): Bitmap? {
+        val boundsOpts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.absolutePath, boundsOpts)
+        if (boundsOpts.outWidth <= 0 || boundsOpts.outHeight <= 0) return null
+
+        var sampleSize = 1
+        while (boundsOpts.outWidth / sampleSize > maxDim * 2 || boundsOpts.outHeight / sampleSize > maxDim * 2) {
+            sampleSize *= 2
+        }
+        return try {
+            val decodeOpts = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
+            BitmapFactory.decodeFile(file.absolutePath, decodeOpts)
+        } catch (_: OutOfMemoryError) {
+            null
+        }
+    }
+
+    private fun applyExifOrientation(bitmap: Bitmap, orientation: Int): Bitmap {
+        val matrix = Matrix()
+        when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+            ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+            ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.preScale(-1f, 1f)
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.preScale(1f, -1f)
+            ExifInterface.ORIENTATION_TRANSPOSE -> {
+                matrix.postRotate(90f)
+                matrix.preScale(-1f, 1f)
+            }
+            ExifInterface.ORIENTATION_TRANSVERSE -> {
+                matrix.postRotate(270f)
+                matrix.preScale(-1f, 1f)
+            }
+            else -> return bitmap
+        }
+        val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        if (rotated !== bitmap) bitmap.recycle()
+        return rotated
+    }
+
     private fun compressCoverImage(uri: Uri, targetFile: File) {
+        val rawTemp = File(cacheDir, "raw_cover_${System.currentTimeMillis()}.tmp")
         try {
-            val boundsOpts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, boundsOpts) }
+            copyUriToFile(uri, rawTemp)
+
+            val orientation = try {
+                ExifInterface(rawTemp.absolutePath).getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.ORIENTATION_NORMAL
+                )
+            } catch (_: Exception) {
+                ExifInterface.ORIENTATION_NORMAL
+            }
 
             val maxDim = 600
-            var sampleSize = 1
-            while (boundsOpts.outWidth / sampleSize > maxDim * 2 || boundsOpts.outHeight / sampleSize > maxDim * 2) {
-                sampleSize *= 2
+            var bitmap = decodeSampledBitmap(rawTemp, maxDim)
+            if (bitmap != null) {
+                bitmap = applyExifOrientation(bitmap, orientation)
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val source = ImageDecoder.createSource(rawTemp)
+                bitmap = ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                    val w = info.size.width
+                    val h = info.size.height
+                    if (w > maxDim || h > maxDim) {
+                        val ratio = minOf(maxDim.toFloat() / w, maxDim.toFloat() / h)
+                        decoder.setTargetSize(
+                            (w * ratio).toInt().coerceAtLeast(1),
+                            (h * ratio).toInt().coerceAtLeast(1)
+                        )
+                    }
+                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                }
             }
 
-            val decodeOpts = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-            val decoded = contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, decodeOpts) }
+            val decoded = bitmap
+                ?: throw IOException("Format gambar tidak didukung atau berkas rusak. Gunakan JPG, PNG, atau WebP.")
 
-            if (decoded != null) {
-                val ratio = minOf(maxDim.toFloat() / decoded.width, maxDim.toFloat() / decoded.height, 1f)
+            val ratio = minOf(maxDim.toFloat() / decoded.width, maxDim.toFloat() / decoded.height, 1f)
+            val scaled = if (ratio < 1f) {
                 val targetW = (decoded.width * ratio).toInt().coerceAtLeast(1)
                 val targetH = (decoded.height * ratio).toInt().coerceAtLeast(1)
-                val scaled = if (ratio < 1f) {
-                    Bitmap.createScaledBitmap(decoded, targetW, targetH, true).also {
-                        if (it !== decoded) decoded.recycle()
-                    }
-                } else {
-                    decoded
+                Bitmap.createScaledBitmap(decoded, targetW, targetH, true).also {
+                    if (it !== decoded) decoded.recycle()
                 }
-                FileOutputStream(targetFile).use { out ->
-                    scaled.compress(Bitmap.CompressFormat.JPEG, 82, out)
-                }
-                scaled.recycle()
-                return
+            } else {
+                decoded
             }
-        } catch (_: Exception) {}
 
-        // Fallback jika gagal decode sebagai Bitmap
-        contentResolver.openInputStream(uri)?.use { input ->
-            FileOutputStream(targetFile).use { output -> input.copyTo(output) }
+            try {
+                FileOutputStream(targetFile).use { out ->
+                    if (!scaled.compress(Bitmap.CompressFormat.JPEG, 82, out)) {
+                        throw IOException("Gagal mengompresi gambar ke JPEG.")
+                    }
+                }
+            } finally {
+                scaled.recycle()
+            }
+
+            if (!targetFile.exists() || targetFile.length() <= 0L) {
+                throw IOException("Hasil kompresi gambar kosong.")
+            }
+        } finally {
+            rawTemp.delete()
+        }
+    }
+
+    private fun isValidPdfHeader(file: File): Boolean {
+        if (!file.exists() || file.length() < 5) return false
+        return try {
+            val buf = ByteArray(1024)
+            val read = FileInputStream(file).use { it.read(buf) }
+            if (read <= 0) false else String(buf, 0, read, Charsets.ISO_8859_1).contains("%PDF-")
+        } catch (_: Exception) {
+            false
         }
     }
 
     private fun handlePickedPdf(uri: Uri) {
         setUploadProgress(true, "Menyiapkan dan mengunggah berkas PDF ke Cloud...")
         lifecycleScope.launch {
+            val localFile = File(cacheDir, "doc_${System.currentTimeMillis()}.pdf")
             try {
-                val inputStream = contentResolver.openInputStream(uri) ?: return@launch
-                val localFile = File(filesDir, "doc_${System.currentTimeMillis()}.pdf")
-                FileOutputStream(localFile).use { inputStream.copyTo(it) }
+                val detectedPages = withContext(Dispatchers.IO) {
+                    copyUriToFile(uri, localFile)
+                    if (!isValidPdfHeader(localFile)) {
+                        throw IOException("Berkas yang dipilih bukan dokumen PDF yang valid.")
+                    }
+                    PdfRendererHelper.countPagesInLocalFile(localFile)
+                }
 
-                // Hitung jumlah halaman langsung dari file lokal (Cepat & Akurat tanpa unduh jaringan)
-                val detectedPages = PdfRendererHelper.countPagesInLocalFile(localFile)
                 if (detectedPages > 0) {
                     binding.etBookPages.setText(detectedPages.toString())
                     binding.tvPdfPageNotice.visibility = View.VISIBLE
                     binding.tvPdfPageNotice.text = "Otomatis terdeteksi: $detectedPages halaman"
                 }
 
-                // Unggah ke Cloud Storage (Gratis, tanpa perlu kartu kredit / Firebase Blaze)
                 val uploadRes = CloudUploader.uploadFile(localFile, "application/pdf")
-
+                var firebaseErr: String? = null
                 val finalUrl = uploadRes.getOrElse {
                     try {
                         val fileName = "doc_${UUID.randomUUID()}.pdf"
                         val storageRef = FirebaseStorage.getInstance().reference.child("books/$fileName")
-                        storageRef.putFile(uri).await()
+                        storageRef.putFile(Uri.fromFile(localFile)).await()
                         storageRef.downloadUrl.await().toString()
-                    } catch (_: Exception) {
-                        "file://${localFile.absolutePath}"
+                    } catch (fbEx: Exception) {
+                        firebaseErr = fbEx.message ?: fbEx.javaClass.simpleName
+                        null
                     }
                 }
 
-                // Simpan salinan ke cache PdfRendererHelper agar perangkat ini langsung bisa membaca tanpa unduh ulang
-                if (finalUrl.startsWith("http://") || finalUrl.startsWith("https://")) {
-                    PdfRendererHelper.saveToCache(this@AddEditBookActivity, finalUrl, localFile)
-                }
-
-                pdfPathOrUrl = finalUrl
-                binding.etPdfUrl.setText(finalUrl)
-                binding.tvPdfStatus.text = if (finalUrl.startsWith("http")) "Dokumen Cloud: Berhasil terpasang" else "Dokumen: ${localFile.name}"
-
-                if (finalUrl.startsWith("http://") || finalUrl.startsWith("https://")) {
+                if (finalUrl != null && (finalUrl.startsWith("http://") || finalUrl.startsWith("https://"))) {
+                    withContext(Dispatchers.IO) {
+                        PdfRendererHelper.saveToCache(this@AddEditBookActivity, finalUrl, localFile)
+                    }
+                    pdfPathOrUrl = finalUrl
+                    binding.etPdfUrl.setText(finalUrl)
+                    binding.tvPdfStatus.text = "Dokumen Cloud: Berhasil terpasang"
                     Toast.makeText(this@AddEditBookActivity, "File PDF berhasil diunggah ke Cloud!", Toast.LENGTH_SHORT).show()
                 } else {
+                    val cloudErr = uploadRes.exceptionOrNull()?.message ?: "Tidak diketahui"
+                    val fbDetail = firebaseErr ?: "Tidak tersedia"
                     AlertDialog.Builder(this@AddEditBookActivity)
-                        .setTitle("Tersimpan Offline")
-                        .setMessage("Gagal mengunggah ke Cloud. File PDF tersimpan di HP ini.\n\n💡 Agar bisa dibaca di HP teman/user lain, Anda juga dapat menempelkan link PDF online (https://) atau link Google Drive langsung pada kolom URL.")
+                        .setTitle("Gagal Mengunggah PDF")
+                        .setMessage("Berkas PDF tidak dapat diunggah ke Cloud.\n\n• Cloud: $cloudErr\n• Firebase Storage: $fbDetail\n\nPeriksa koneksi internet Anda atau tempelkan link PDF online (https://) / Google Drive langsung pada kolom URL.")
                         .setPositiveButton("Mengerti", null)
                         .show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(this@AddEditBookActivity, "Gagal memproses PDF: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@AddEditBookActivity, "Gagal memproses PDF: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
+                localFile.delete()
                 setUploadProgress(false)
             }
         }
@@ -328,9 +468,11 @@ class AddEditBookActivity : AppCompatActivity() {
 
     private fun detectPdfPages(source: String) {
         if (source.isBlank()) return
+        detectPagesJob?.cancel()
         binding.tvPdfPageNotice.visibility = View.VISIBLE
         binding.tvPdfPageNotice.text = "Memeriksa jumlah halaman PDF..."
-        lifecycleScope.launch {
+        detectPagesJob = lifecycleScope.launch {
+            delay(400)
             val res = pdfHelper.openPdfFromUrl(source)
             res.fold(
                 onSuccess = { count ->

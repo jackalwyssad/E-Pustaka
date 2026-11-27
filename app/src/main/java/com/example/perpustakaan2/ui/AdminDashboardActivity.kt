@@ -121,7 +121,7 @@ class AdminDashboardActivity : AppCompatActivity() {
     private fun showDeleteBookDialog(book: Book) {
         AlertDialog.Builder(this)
             .setTitle("Hapus Buku")
-            .setMessage("Apakah Anda yakin ingin menghapus buku \"${book.judul}\"?")
+            .setMessage("Apakah Anda yakin ingin menghapus buku \"${book.judul}\"?\n\nSemua peminjaman aktif dan antrian untuk buku ini akan otomatis dihentikan.")
             .setPositiveButton("Hapus") { _, _ ->
                 lifecycleScope.launch {
                     val res = bookRepository.deleteBook(book.id)

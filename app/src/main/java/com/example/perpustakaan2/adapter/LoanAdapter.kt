@@ -34,11 +34,17 @@ class LoanAdapter(
             binding.tvLoanTitle.text = loan.judulBuku
 
             if (isHistoryMode) {
-                binding.tvLoanStatus.text = "STATUS: ${loan.status.uppercase()}"
+                if (loan.status == com.example.perpustakaan2.util.Constants.STATUS_BUKU_DIHAPUS) {
+                    binding.tvLoanStatus.text = "STATUS: BUKU DIHAPUS ADMIN"
+                    binding.btnReadLoan.visibility = android.view.View.GONE
+                } else {
+                    binding.tvLoanStatus.text = "STATUS: ${loan.status.uppercase()}"
+                    binding.btnReadLoan.visibility = android.view.View.VISIBLE
+                    binding.btnReadLoan.text = "Buka Kembali"
+                }
                 binding.tvLoanDueDate.text = "Dipinjam: ${dateFormat.format(Date(loan.tanggalPinjam))} (${loan.tipe.uppercase()})"
                 binding.tvReadingProgress.text = "Terakhir dibaca: Hal ${loan.halamanTerakhir}"
                 binding.btnReturnLoan.visibility = android.view.View.GONE
-                binding.btnReadLoan.text = "Buka Kembali"
             } else {
                 if (loan.tipe == "kilat") {
                     val remainingMillis = loan.tanggalJatuhTempo - System.currentTimeMillis()

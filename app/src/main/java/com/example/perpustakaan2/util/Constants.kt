@@ -22,6 +22,7 @@ object Constants {
     const val STATUS_DIKEMBALIKAN = "dikembalikan"
     const val STATUS_DIPERPANJANG = "diperpanjang"
     const val STATUS_AUTO_RECALL = "auto-recall"
+    const val STATUS_BUKU_DIHAPUS = "buku_dihapus"
     const val STATUS_MENUNGGU = "menunggu"
     const val STATUS_TERSEDIA = "tersedia"
     const val STATUS_EXPIRED = "expired"

@@ -13,8 +13,11 @@ import com.example.perpustakaan2.data.repository.AuthRepository
 import com.example.perpustakaan2.data.repository.BookRepository
 import com.example.perpustakaan2.data.repository.LoanRepository
 import com.example.perpustakaan2.databinding.ActivityPdfReaderBinding
+import com.example.perpustakaan2.util.Constants
 import com.example.perpustakaan2.util.PdfRendererHelper
 import com.google.android.material.slider.Slider
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.launch
 
 class PdfReaderActivity : AppCompatActivity() {
@@ -48,6 +51,7 @@ class PdfReaderActivity : AppCompatActivity() {
     private var isKilat: Boolean = false
     private var dueDate: Long = 0L
     private var kilatTimer: CountDownTimer? = null
+    private var bookDeletedListener: ListenerRegistration? = null
 
     private var currentPageIndex: Int = 0
     private var totalPages: Int = 0
@@ -74,7 +78,31 @@ class PdfReaderActivity : AppCompatActivity() {
         setupToolbar()
         setupControls()
         setupKilatTimer()
+        observeBookDeletion()
         resolveAndLoadPdf()
+    }
+
+    private fun observeBookDeletion() {
+        if (bookId.isBlank()) return
+        bookDeletedListener = FirebaseFirestore.getInstance()
+            .collection(Constants.COLLECTION_BOOKS)
+            .document(bookId)
+            .addSnapshotListener { snapshot, error ->
+                if (error == null && snapshot != null && !snapshot.exists()) {
+                    showBookDeletedDialog()
+                }
+            }
+    }
+
+    private fun showBookDeletedDialog() {
+        if (isFinishing || isDestroyed) return
+        kilatTimer?.cancel()
+        AlertDialog.Builder(this)
+            .setTitle("Buku Tidak Tersedia")
+            .setMessage("Maaf, buku ini telah dihapus oleh Admin dari perpustakaan sehingga tidak dapat dibaca lagi.")
+            .setPositiveButton("Mengerti") { _, _ -> finish() }
+            .setCancelable(false)
+            .show()
     }
 
     private fun setupToolbar() {
@@ -213,6 +241,11 @@ class PdfReaderActivity : AppCompatActivity() {
             if (bookId.isNotBlank()) {
                 val bookRes = bookRepository.getBookById(bookId)
                 val book = bookRes.getOrNull()
+                if (bookRes.isSuccess && book == null) {
+                    binding.pbPdfLoading.visibility = View.GONE
+                    showBookDeletedDialog()
+                    return@launch
+                }
                 if (book != null && book.urlPdf.isNotBlank()) {
                     pdfUrl = book.urlPdf
                     if (book.judul.isNotBlank()) {
@@ -297,6 +330,8 @@ class PdfReaderActivity : AppCompatActivity() {
         super.onDestroy()
         kilatTimer?.cancel()
         kilatTimer = null
+        bookDeletedListener?.remove()
+        bookDeletedListener = null
         pdfHelper.close()
     }
 }

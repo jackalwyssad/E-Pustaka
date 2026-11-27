@@ -237,6 +237,11 @@ class BookDetailActivity : AppCompatActivity() {
     private fun refreshBook() {
         lifecycleScope.launch {
             val res = bookRepository.getBookById(bookId)
+            if (res.isSuccess && res.getOrNull() == null) {
+                Toast.makeText(this@BookDetailActivity, "Buku ini telah dihapus oleh Admin.", Toast.LENGTH_SHORT).show()
+                finish()
+                return@launch
+            }
             res.getOrNull()?.let {
                 currentBook = it
                 bindBook(it)

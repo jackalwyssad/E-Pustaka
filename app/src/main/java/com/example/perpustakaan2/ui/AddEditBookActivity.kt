@@ -1,5 +1,7 @@
 package com.example.perpustakaan2.ui
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
@@ -10,7 +12,9 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
+import coil.imageLoader
 import coil.load
+import coil.request.ImageRequest
 import com.example.perpustakaan2.data.model.Book
 import com.example.perpustakaan2.data.model.Category
 import com.example.perpustakaan2.data.repository.BookRepository
@@ -19,9 +23,11 @@ import com.example.perpustakaan2.databinding.ActivityAddEditBookBinding
 import com.example.perpustakaan2.util.CloudUploader
 import com.example.perpustakaan2.util.PdfRendererHelper
 import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -172,12 +178,18 @@ class AddEditBookActivity : AppCompatActivity() {
     }
 
     private fun handlePickedImage(uri: Uri) {
-        setUploadProgress(true, "Mengunggah foto sampul ke Cloud...")
+        setUploadProgress(true, "Mengompresi dan mengunggah sampul...")
         lifecycleScope.launch {
             try {
-                val inputStream = contentResolver.openInputStream(uri) ?: return@launch
                 val localFile = File(filesDir, "cover_${System.currentTimeMillis()}.jpg")
-                FileOutputStream(localFile).use { inputStream.copyTo(it) }
+                withContext(Dispatchers.IO) {
+                    compressCoverImage(uri, localFile)
+                }
+
+                // Tampilkan preview lokal instan sambil menunggu unggah selesai
+                binding.ivCoverPreview.visibility = View.VISIBLE
+                binding.layoutCoverPlaceholder.visibility = View.GONE
+                binding.ivCoverPreview.load(localFile)
 
                 // Unggah ke Cloud Storage (Gratis, tanpa perlu kartu kredit / Firebase Blaze)
                 val uploadRes = CloudUploader.uploadFile(localFile, "image/jpeg")
@@ -186,7 +198,7 @@ class AddEditBookActivity : AppCompatActivity() {
                     try {
                         val fileName = "cover_${UUID.randomUUID()}.jpg"
                         val storageRef = FirebaseStorage.getInstance().reference.child("covers/$fileName")
-                        storageRef.putFile(uri).await()
+                        storageRef.putFile(Uri.fromFile(localFile)).await()
                         storageRef.downloadUrl.await().toString()
                     } catch (_: Exception) {
                         "file://${localFile.absolutePath}"
@@ -195,16 +207,19 @@ class AddEditBookActivity : AppCompatActivity() {
 
                 coverPathOrUrl = finalUrl
                 binding.etCoverUrl.setText(finalUrl)
-                binding.ivCoverPreview.visibility = View.VISIBLE
-                binding.layoutCoverPlaceholder.visibility = View.GONE
-                binding.ivCoverPreview.load(localFile)
 
                 if (finalUrl.startsWith("http://") || finalUrl.startsWith("https://")) {
-                    Toast.makeText(this@AddEditBookActivity, "Foto sampul berhasil diunggah ke Cloud!", Toast.LENGTH_SHORT).show()
+                    // Pre-warm Coil cache agar sampul langsung tampil instan saat buku diterbitkan
+                    imageLoader.enqueue(
+                        ImageRequest.Builder(this@AddEditBookActivity)
+                            .data(finalUrl)
+                            .build()
+                    )
+                    Toast.makeText(this@AddEditBookActivity, "Foto sampul berhasil diunggah!", Toast.LENGTH_SHORT).show()
                 } else {
                     AlertDialog.Builder(this@AddEditBookActivity)
                         .setTitle("Tersimpan Offline")
-                        .setMessage("Gagal mengunggah ke Cloud. Gambar tersimpan di memori HP ini.\n\n💡 Agar foto sampul bisa dilihat di HP teman/user lain, Anda juga dapat menempelkan URL gambar online (https://) langsung pada kolom URL.")
+                        .setMessage("Gagal mengunggah ke Cloud. Gambar tersimpan di memori HP ini.\n\nAgar foto sampul bisa dilihat di HP teman/user lain, Anda juga dapat menempelkan URL gambar online (https://) langsung pada kolom URL.")
                         .setPositiveButton("Mengerti", null)
                         .show()
                 }
@@ -213,6 +228,45 @@ class AddEditBookActivity : AppCompatActivity() {
             } finally {
                 setUploadProgress(false)
             }
+        }
+    }
+
+    private fun compressCoverImage(uri: Uri, targetFile: File) {
+        try {
+            val boundsOpts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, boundsOpts) }
+
+            val maxDim = 600
+            var sampleSize = 1
+            while (boundsOpts.outWidth / sampleSize > maxDim * 2 || boundsOpts.outHeight / sampleSize > maxDim * 2) {
+                sampleSize *= 2
+            }
+
+            val decodeOpts = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+            val decoded = contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, decodeOpts) }
+
+            if (decoded != null) {
+                val ratio = minOf(maxDim.toFloat() / decoded.width, maxDim.toFloat() / decoded.height, 1f)
+                val targetW = (decoded.width * ratio).toInt().coerceAtLeast(1)
+                val targetH = (decoded.height * ratio).toInt().coerceAtLeast(1)
+                val scaled = if (ratio < 1f) {
+                    Bitmap.createScaledBitmap(decoded, targetW, targetH, true).also {
+                        if (it !== decoded) decoded.recycle()
+                    }
+                } else {
+                    decoded
+                }
+                FileOutputStream(targetFile).use { out ->
+                    scaled.compress(Bitmap.CompressFormat.JPEG, 82, out)
+                }
+                scaled.recycle()
+                return
+            }
+        } catch (_: Exception) {}
+
+        // Fallback jika gagal decode sebagai Bitmap
+        contentResolver.openInputStream(uri)?.use { input ->
+            FileOutputStream(targetFile).use { output -> input.copyTo(output) }
         }
     }
 

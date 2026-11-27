@@ -128,7 +128,40 @@ class BookRepository(
 
     suspend fun deleteBook(bookId: String): Result<Unit> {
         return try {
+            // 1. Hapus dokumen buku utama
             booksCollection.document(bookId).delete().await()
+
+            // 2. Hentikan semua peminjaman aktif/diperpanjang untuk buku ini
+            try {
+                val now = System.currentTimeMillis()
+                val loanDocs = firestore.collection(Constants.COLLECTION_LOANS)
+                    .whereEqualTo("bookId", bookId)
+                    .get()
+                    .await()
+                for (doc in loanDocs.documents) {
+                    val status = doc.getString("status") ?: ""
+                    if (status == Constants.STATUS_AKTIF || status == Constants.STATUS_DIPERPANJANG) {
+                        doc.reference.update(
+                            mapOf(
+                                "status" to Constants.STATUS_BUKU_DIHAPUS,
+                                "tanggalKembali" to now
+                            )
+                        ).await()
+                    }
+                }
+            } catch (_: Exception) {}
+
+            // 3. Hapus semua antrian untuk buku ini
+            try {
+                val queueDocs = firestore.collection(Constants.COLLECTION_QUEUE)
+                    .whereEqualTo("bookId", bookId)
+                    .get()
+                    .await()
+                for (doc in queueDocs.documents) {
+                    doc.reference.delete().await()
+                }
+            } catch (_: Exception) {}
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

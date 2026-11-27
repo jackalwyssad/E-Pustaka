@@ -10,6 +10,7 @@ import coil.load
 import com.example.perpustakaan2.R
 import com.example.perpustakaan2.data.model.QueueEntry
 import com.example.perpustakaan2.databinding.ItemQueueBinding
+import com.example.perpustakaan2.util.Constants
 
 class QueueAdapter(
     private val onClaimClick: (QueueEntry) -> Unit,
@@ -22,7 +23,8 @@ class QueueAdapter(
         fun bind(queue: QueueEntry) {
             binding.tvQueueTitle.text = queue.bookTitle
             binding.tvQueueNumber.text = "Nomor Urut Antrian: #${queue.position}"
-            binding.tvQueueEstimate.text = if (queue.status == "READY") {
+            val isReady = queue.status == Constants.STATUS_TERSEDIA
+            binding.tvQueueEstimate.text = if (isReady) {
                 "Buku sudah tersedia! Segera klaim sebelum hangus."
             } else {
                 "Estimasi giliran Anda: ~${queue.position * 2} hari"
@@ -38,11 +40,12 @@ class QueueAdapter(
                 binding.ivQueueCover.setImageResource(R.drawable.ic_book)
             }
 
-            if (queue.status == "READY") {
+            if (isReady) {
                 binding.btnClaimQueue.visibility = View.VISIBLE
                 binding.btnClaimQueue.setOnClickListener { onClaimClick(queue) }
             } else {
                 binding.btnClaimQueue.visibility = View.GONE
+                binding.btnClaimQueue.setOnClickListener(null)
             }
 
             binding.btnCancelQueue.setOnClickListener { onCancelClick(queue) }

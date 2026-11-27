@@ -36,6 +36,7 @@ class ReadingHistoryActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
         loanAdapter = LoanAdapter(
+            isHistoryMode = true,
             onReadClick = { loan ->
                 val intent = Intent(this, PdfReaderActivity::class.java).apply {
                     putExtra(PdfReaderActivity.EXTRA_BOOK_ID, loan.bookId)

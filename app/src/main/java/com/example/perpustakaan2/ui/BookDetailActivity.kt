@@ -27,6 +27,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 class BookDetailActivity : AppCompatActivity() {
 
@@ -47,6 +48,7 @@ class BookDetailActivity : AppCompatActivity() {
     private var activeQueue: QueueEntry? = null
     private var isFavorite: Boolean = false
     private var canWriteReview: Boolean = false
+    private var isAutoReturningKilat: Boolean = false
     private var bookDeletedListener: ListenerRegistration? = null
 
     private lateinit var reviewAdapter: ReviewAdapter
@@ -161,17 +163,22 @@ class BookDetailActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             val book = currentBook ?: return@setOnClickListener
+            binding.btnQuickSession.isEnabled = false
             lifecycleScope.launch {
-                val res = loanRepository.startQuickSession(uid, book)
-                res.fold(
-                    onSuccess = {
-                        Toast.makeText(this@BookDetailActivity, "Sesi Baca Kilat (2 Jam) Dimulai!", Toast.LENGTH_SHORT).show()
-                        refreshBook()
-                    },
-                    onFailure = { e ->
-                        Toast.makeText(this@BookDetailActivity, "Gagal: ${e.message}", Toast.LENGTH_LONG).show()
-                    }
-                )
+                try {
+                    val res = loanRepository.startQuickSession(uid, book)
+                    res.fold(
+                        onSuccess = {
+                            Toast.makeText(this@BookDetailActivity, "Sesi Baca Kilat (2 Jam) Dimulai!", Toast.LENGTH_SHORT).show()
+                            refreshBook()
+                        },
+                        onFailure = { e ->
+                            Toast.makeText(this@BookDetailActivity, "Gagal: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                    )
+                } finally {
+                    binding.btnQuickSession.isEnabled = true
+                }
             }
         }
 
@@ -183,48 +190,62 @@ class BookDetailActivity : AppCompatActivity() {
             }
             val book = currentBook ?: return@setOnClickListener
 
+            binding.btnBorrowBook.isEnabled = false
             if (book.stokTersedia > 0) {
                 lifecycleScope.launch {
-                    val res = loanRepository.borrowBook(uid, book)
-                    res.fold(
-                        onSuccess = {
-                            Toast.makeText(this@BookDetailActivity, "Buku berhasil dipinjam selama 7 hari!", Toast.LENGTH_SHORT).show()
-                            refreshBook()
-                        },
-                        onFailure = { e ->
-                            Toast.makeText(this@BookDetailActivity, "Gagal: ${e.message}", Toast.LENGTH_LONG).show()
-                        }
-                    )
+                    try {
+                        val res = loanRepository.borrowBook(uid, book)
+                        res.fold(
+                            onSuccess = {
+                                Toast.makeText(this@BookDetailActivity, "Buku berhasil dipinjam selama 7 hari!", Toast.LENGTH_SHORT).show()
+                                refreshBook()
+                            },
+                            onFailure = { e ->
+                                Toast.makeText(this@BookDetailActivity, "Gagal: ${e.message}", Toast.LENGTH_LONG).show()
+                            }
+                        )
+                    } finally {
+                        binding.btnBorrowBook.isEnabled = true
+                    }
                 }
             } else {
                 lifecycleScope.launch {
-                    val res = queueRepository.joinQueue(uid, book)
-                    res.fold(
-                        onSuccess = {
-                            Toast.makeText(this@BookDetailActivity, "Anda telah masuk dalam antrian peminjaman", Toast.LENGTH_SHORT).show()
-                            refreshBook()
-                        },
-                        onFailure = { e ->
-                            Toast.makeText(this@BookDetailActivity, "Gagal: ${e.message}", Toast.LENGTH_LONG).show()
-                        }
-                    )
+                    try {
+                        val res = queueRepository.joinQueue(uid, book)
+                        res.fold(
+                            onSuccess = {
+                                Toast.makeText(this@BookDetailActivity, "Anda telah masuk dalam antrian peminjaman", Toast.LENGTH_SHORT).show()
+                                refreshBook()
+                            },
+                            onFailure = { e ->
+                                Toast.makeText(this@BookDetailActivity, "Gagal: ${e.message}", Toast.LENGTH_LONG).show()
+                            }
+                        )
+                    } finally {
+                        binding.btnBorrowBook.isEnabled = true
+                    }
                 }
             }
         }
 
         binding.btnCancelQueueFromDetail.setOnClickListener {
             val queue = activeQueue ?: return@setOnClickListener
+            binding.btnCancelQueueFromDetail.isEnabled = false
             lifecycleScope.launch {
-                val res = queueRepository.cancelQueue(queue.id, queue.bookId)
-                res.fold(
-                    onSuccess = {
-                        Toast.makeText(this@BookDetailActivity, "Antrian berhasil dibatalkan", Toast.LENGTH_SHORT).show()
-                        refreshBook()
-                    },
-                    onFailure = { e ->
-                        Toast.makeText(this@BookDetailActivity, "Gagal: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-                )
+                try {
+                    val res = queueRepository.cancelQueue(queue.id, queue.bookId)
+                    res.fold(
+                        onSuccess = {
+                            Toast.makeText(this@BookDetailActivity, "Antrian berhasil dibatalkan", Toast.LENGTH_SHORT).show()
+                            refreshBook()
+                        },
+                        onFailure = { e ->
+                            Toast.makeText(this@BookDetailActivity, "Gagal: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                } finally {
+                    binding.btnCancelQueueFromDetail.isEnabled = true
+                }
             }
         }
 
@@ -264,13 +285,18 @@ class BookDetailActivity : AppCompatActivity() {
 
         // Pantau penghapusan buku secara real-time agar halaman detail ikut tertutup
         // (termasuk saat pengguna sedang membaca di PdfReaderActivity di atasnya)
+        var bookExistedInFirestore = false
         bookDeletedListener = FirebaseFirestore.getInstance()
             .collection(Constants.COLLECTION_BOOKS)
             .document(bookId)
             .addSnapshotListener { snapshot, error ->
-                if (error == null && snapshot != null && !snapshot.exists()) {
-                    if (!isFinishing && !isDestroyed) {
-                        finish()
+                if (error == null && snapshot != null) {
+                    if (snapshot.exists()) {
+                        bookExistedInFirestore = true
+                    } else if (bookExistedInFirestore) {
+                        if (!isFinishing && !isDestroyed) {
+                            finish()
+                        }
                     }
                 }
             }
@@ -325,7 +351,11 @@ class BookDetailActivity : AppCompatActivity() {
         binding.tvDetailTitle.text = book.judul
         binding.tvDetailAuthor.text = book.penulis
         binding.tvDetailCategory.text = book.namaKategori
-        binding.tvDetailRating.text = "★ ${book.rataRating}"
+        binding.tvDetailRating.text = if (book.rataRating > 0f) {
+            "★ ${String.format(Locale.US, "%.1f", book.rataRating)}"
+        } else {
+            "★ -"
+        }
         binding.tvDetailRatingCount.text = "(${book.jumlahRating} Ulasan)"
 
         binding.tvMetricPages.text = "${book.jumlahHalaman}\nHalaman"
@@ -361,10 +391,17 @@ class BookDetailActivity : AppCompatActivity() {
 
             // Jika sesi kilat telah lewat 2 jam, otomatis kembalikan
             if (loan.tipe == Constants.TIPE_KILAT && loan.tanggalJatuhTempo in 1..now) {
-                lifecycleScope.launch {
-                    loanRepository.returnBook(loan.id)
-                    activeLoan = null
-                    refreshBook()
+                if (!isAutoReturningKilat) {
+                    isAutoReturningKilat = true
+                    lifecycleScope.launch {
+                        try {
+                            loanRepository.returnBook(loan.id)
+                            activeLoan = null
+                            refreshBook()
+                        } finally {
+                            isAutoReturningKilat = false
+                        }
+                    }
                 }
                 return
             }

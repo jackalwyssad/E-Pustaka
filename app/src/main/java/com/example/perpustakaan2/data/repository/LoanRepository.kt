@@ -4,7 +4,6 @@ import com.example.perpustakaan2.data.model.Book
 import com.example.perpustakaan2.data.model.Loan
 import com.example.perpustakaan2.util.Constants
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -20,7 +19,7 @@ class LoanRepository(
     private val queueCollection = firestore.collection(Constants.COLLECTION_QUEUE)
     private val usersCollection = firestore.collection(Constants.COLLECTION_USERS)
 
-    suspend fun borrowBook(userId: String, book: Book): Result<String> {
+    suspend fun borrowBook(userId: String, book: Book, fromQueue: Boolean = false): Result<String> {
         return try {
             val effectiveBookId = book.id.ifBlank {
                 throw Exception("Identitas buku tidak valid atau belum tersimpan.")
@@ -51,7 +50,7 @@ class LoanRepository(
                 book
             }
 
-            if (currentBook.stokTersedia <= 0) {
+            if (!fromQueue && currentBook.stokTersedia <= 0) {
                 throw Exception("Stok pinjaman buku reguler sedang habis. Silakan gunakan Sesi Baca Kilat (2 Jam) atau masuk ke Antrian.")
             }
 
@@ -77,22 +76,26 @@ class LoanRepository(
 
             loanRef.set(loan).await()
 
-            val newAvailable = (currentBook.stokTersedia - 1).coerceAtLeast(0)
-            bookRef.update(mapOf(
-                "stokTersedia" to newAvailable,
+            val bookUpdates = mutableMapOf<String, Any>(
                 "jumlahPeminjam" to (currentBook.jumlahPeminjam + 1)
-            )).await()
+            )
+            if (!fromQueue) {
+                bookUpdates["stokTersedia"] = (currentBook.stokTersedia - 1).coerceAtLeast(0)
+            }
+            bookRef.update(bookUpdates).await()
 
-            try {
-                val queueDocs = queueCollection
-                    .whereEqualTo("userId", userId)
-                    .whereEqualTo("bookId", effectiveBookId)
-                    .get()
-                    .await()
-                for (doc in queueDocs.documents) {
-                    doc.reference.delete().await()
-                }
-            } catch (_: Exception) {}
+            if (!fromQueue) {
+                try {
+                    val queueDocs = queueCollection
+                        .whereEqualTo("userId", userId)
+                        .whereEqualTo("bookId", effectiveBookId)
+                        .get()
+                        .await()
+                    for (doc in queueDocs.documents) {
+                        doc.reference.delete().await()
+                    }
+                } catch (_: Exception) {}
+            }
 
             Result.success(loanRef.id)
         } catch (e: Exception) {
@@ -159,25 +162,30 @@ class LoanRepository(
 
     suspend fun returnBook(loanId: String): Result<Unit> {
         return try {
-            val loanDoc = loansCollection.document(loanId).get().await()
-            val loan = if (loanDoc.exists()) Loan.fromSnapshot(loanDoc) else null
-                ?: throw Exception("Data peminjaman tidak ditemukan di database.")
+            val loanRef = loansCollection.document(loanId)
+            val returnedLoan = firestore.runTransaction { transaction ->
+                val loanDoc = transaction.get(loanRef)
+                val loan = if (loanDoc.exists()) Loan.fromSnapshot(loanDoc) else null
+                    ?: throw Exception("Data peminjaman tidak ditemukan di database.")
 
-            if (loan.status != Constants.STATUS_AKTIF && loan.status != Constants.STATUS_DIPERPANJANG) {
-                return Result.success(Unit)
-            }
+                if (loan.status != Constants.STATUS_AKTIF && loan.status != Constants.STATUS_DIPERPANJANG) {
+                    return@runTransaction null
+                }
 
-            loansCollection.document(loanId).update(
-                mapOf(
-                    "status" to Constants.STATUS_DIKEMBALIKAN,
-                    "tanggalKembali" to System.currentTimeMillis()
+                transaction.update(
+                    loanRef,
+                    mapOf(
+                        "status" to Constants.STATUS_DIKEMBALIKAN,
+                        "tanggalKembali" to System.currentTimeMillis()
+                    )
                 )
-            ).await()
+                loan
+            }.await() ?: return Result.success(Unit)
 
-            val bookRef = booksCollection.document(loan.bookId)
+            val bookRef = booksCollection.document(returnedLoan.bookId)
             val bookDoc = bookRef.get().await()
 
-            if (loan.tipe == Constants.TIPE_KILAT) {
+            if (returnedLoan.tipe == Constants.TIPE_KILAT) {
                 if (bookDoc.exists()) {
                     val currentKilat = bookDoc.getLong("stokSesiKilat")?.toInt() ?: 0
                     val maxKilat = bookDoc.getLong("stokMaksimal")?.toInt() ?: 15
@@ -186,7 +194,7 @@ class LoanRepository(
                 }
             } else {
                 val queueSnap = queueCollection
-                    .whereEqualTo("bookId", loan.bookId)
+                    .whereEqualTo("bookId", returnedLoan.bookId)
                     .whereEqualTo("status", Constants.STATUS_MENUNGGU)
                     .get()
                     .await()
@@ -303,7 +311,7 @@ class LoanRepository(
                 }
 
                 if (expiredKilat.isNotEmpty()) {
-                    CoroutineScope(Dispatchers.IO).launch {
+                    launch(Dispatchers.IO) {
                         for (exp in expiredKilat) {
                             try { returnBook(exp.id) } catch (_: Exception) {}
                         }

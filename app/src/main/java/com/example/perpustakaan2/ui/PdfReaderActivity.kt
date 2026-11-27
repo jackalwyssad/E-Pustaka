@@ -18,6 +18,7 @@ import com.example.perpustakaan2.util.PdfRendererHelper
 import com.google.android.material.slider.Slider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class PdfReaderActivity : AppCompatActivity() {
@@ -52,6 +53,7 @@ class PdfReaderActivity : AppCompatActivity() {
     private var dueDate: Long = 0L
     private var kilatTimer: CountDownTimer? = null
     private var bookDeletedListener: ListenerRegistration? = null
+    private var renderJob: Job? = null
 
     private var currentPageIndex: Int = 0
     private var totalPages: Int = 0
@@ -84,12 +86,17 @@ class PdfReaderActivity : AppCompatActivity() {
 
     private fun observeBookDeletion() {
         if (bookId.isBlank()) return
+        var bookExistedInFirestore = false
         bookDeletedListener = FirebaseFirestore.getInstance()
             .collection(Constants.COLLECTION_BOOKS)
             .document(bookId)
             .addSnapshotListener { snapshot, error ->
-                if (error == null && snapshot != null && !snapshot.exists()) {
-                    showBookDeletedDialog()
+                if (error == null && snapshot != null) {
+                    if (snapshot.exists()) {
+                        bookExistedInFirestore = true
+                    } else if (bookExistedInFirestore) {
+                        showBookDeletedDialog()
+                    }
                 }
             }
     }
@@ -177,7 +184,7 @@ class PdfReaderActivity : AppCompatActivity() {
 
             override fun onFinish() {
                 binding.toolbarReader.subtitle = "⏱️ Sesi Kilat Berakhir"
-                if (!isFinishing) {
+                if (!isFinishing && !isDestroyed) {
                     AlertDialog.Builder(this@PdfReaderActivity)
                         .setTitle("Waktu Sesi Kilat Habis")
                         .setMessage("Waktu Sesi Baca Kilat 2 jam Anda telah berakhir. Buku telah otomatis dikembalikan.")
@@ -308,10 +315,12 @@ class PdfReaderActivity : AppCompatActivity() {
         binding.btnPrevPage.isEnabled = currentPageIndex > 0
         binding.btnNextPage.isEnabled = currentPageIndex < maxAllowedPageIndex
 
-        lifecycleScope.launch {
+        val targetPageIndex = currentPageIndex
+        renderJob?.cancel()
+        renderJob = lifecycleScope.launch {
             try {
-                val bitmap = pdfHelper.renderPage(currentPageIndex)
-                if (bitmap != null) {
+                val bitmap = pdfHelper.renderPage(targetPageIndex)
+                if (bitmap != null && !isFinishing && !isDestroyed) {
                     binding.ivPdfPage.setImageBitmap(bitmap)
                 }
             } catch (_: Exception) {}

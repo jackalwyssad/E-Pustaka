@@ -68,6 +68,8 @@ class ReviewAdapter(
                     }
                     popup.show()
                 }
+            } else {
+                binding.btnReviewMenu.setOnClickListener(null)
             }
         }
     }

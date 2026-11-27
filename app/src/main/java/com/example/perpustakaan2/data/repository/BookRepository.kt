@@ -7,8 +7,8 @@ import com.example.perpustakaan2.data.model.Review
 import com.example.perpustakaan2.util.Constants
 import com.example.perpustakaan2.util.DummyData
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -181,14 +181,15 @@ class BookRepository(
         return try {
             firestore.runTransaction { transaction ->
                 val bookDoc = transaction.get(booksCollection.document(bookId))
-                val book = bookDoc.toObject(Book::class.java) ?: return@runTransaction
+                if (!bookDoc.exists()) return@runTransaction
+                val book = Book.fromSnapshot(bookDoc)
 
                 val threshold = book.stokAwal * Constants.MULTIPLIER_ANTRIAN_UNTUK_TAMBAH_STOK
                 if (book.jumlahAntrian > threshold) {
                     val bonusStok = (book.jumlahAntrian - threshold) / Constants.PEMBAGI_STOK_DINAMIS
                     val newTotal = (book.stokAwal + bonusStok).coerceAtMost(book.stokMaksimal)
-                    val activeBorrowers = book.stokAwal - book.stokTersedia
-                    val newAvailable = (newTotal - activeBorrowers).coerceAtLeast(0)
+                    val activeBorrowers = (book.stokAwal - book.stokTersedia).coerceAtLeast(0)
+                    val newAvailable = (newTotal - activeBorrowers).coerceIn(0, book.stokMaksimal)
 
                     transaction.update(booksCollection.document(bookId), mapOf(
                         "stokTersedia" to newAvailable
@@ -202,6 +203,7 @@ class BookRepository(
     }
 
     fun getReviewsFlow(bookId: String): Flow<List<Review>> = callbackFlow {
+        var enrichJob: Job? = null
         val listener = reviewsCollection.whereEqualTo("bookId", bookId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -214,7 +216,8 @@ class BookRepository(
 
                 trySend(rawList.sortedByDescending { it.tanggal })
 
-                CoroutineScope(Dispatchers.IO).launch {
+                enrichJob?.cancel()
+                enrichJob = launch(Dispatchers.IO) {
                     val userIds = rawList.map { it.userId }.filter { it.isNotBlank() }.distinct()
                     val userProfiles = mutableMapOf<String, Pair<String?, String?>>()
                     for (uId in userIds) {
@@ -242,7 +245,10 @@ class BookRepository(
                     }
                 }
             }
-        awaitClose { listener.remove() }
+        awaitClose {
+            enrichJob?.cancel()
+            listener.remove()
+        }
     }
 
     suspend fun addReview(review: Review): Result<Unit> {

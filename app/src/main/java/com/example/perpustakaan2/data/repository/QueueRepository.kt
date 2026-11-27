@@ -77,7 +77,32 @@ class QueueRepository(
 
     suspend fun cancelQueue(queueId: String, bookId: String): Result<Unit> {
         return try {
-            queueCollection.document(queueId).delete().await()
+            val queueRef = queueCollection.document(queueId)
+            val queueDoc = queueRef.get().await()
+            val wasAvailable = queueDoc.exists() && queueDoc.getString("status") == Constants.STATUS_TERSEDIA
+
+            queueRef.delete().await()
+
+            if (wasAvailable) {
+                val waitingSnap = queueCollection
+                    .whereEqualTo("bookId", bookId)
+                    .whereEqualTo("status", Constants.STATUS_MENUNGGU)
+                    .get()
+                    .await()
+                val nextUserDoc = waitingSnap.documents.minByOrNull { it.getLong("nomorUrut") ?: Long.MAX_VALUE }
+                if (nextUserDoc != null) {
+                    nextUserDoc.reference.update("status", Constants.STATUS_TERSEDIA).await()
+                } else {
+                    val bookRef = booksCollection.document(bookId)
+                    val bookDoc = bookRef.get().await()
+                    if (bookDoc.exists()) {
+                        val currentAvailable = bookDoc.getLong("stokTersedia")?.toInt() ?: 0
+                        val maxStock = bookDoc.getLong("stokMaksimal")?.toInt() ?: 15
+                        val newAvailable = (currentAvailable + 1).coerceAtMost(maxStock)
+                        bookRef.update("stokTersedia", newAvailable).await()
+                    }
+                }
+            }
 
             val bookRef = booksCollection.document(bookId)
             val bookDoc = bookRef.get().await()
@@ -101,7 +126,7 @@ class QueueRepository(
                 .get()
                 .await()
 
-            query.documents.mapNotNull { it.toObject(QueueEntry::class.java)?.copy(id = it.id) }
+            query.documents.map { QueueEntry.fromSnapshot(it) }
                 .firstOrNull { it.status == Constants.STATUS_MENUNGGU || it.status == Constants.STATUS_TERSEDIA }
         } catch (e: Exception) {
             null
@@ -116,8 +141,8 @@ class QueueRepository(
                     trySend(emptyList())
                     return@addSnapshotListener
                 }
-                val list = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(QueueEntry::class.java)?.copy(id = doc.id)
+                val list = snapshot?.documents?.map { doc ->
+                    QueueEntry.fromSnapshot(doc)
                 } ?: emptyList()
                 val active = list.filter { it.status == Constants.STATUS_MENUNGGU || it.status == Constants.STATUS_TERSEDIA }
                     .sortedByDescending { it.tanggalDaftar }
@@ -128,7 +153,7 @@ class QueueRepository(
 
     suspend fun claimAvailableBook(queueId: String, userId: String, book: Book): Result<String> {
         return try {
-            val loanId = loanRepository.borrowBook(userId, book).getOrThrow()
+            val loanId = loanRepository.borrowBook(userId, book, fromQueue = true).getOrThrow()
             queueCollection.document(queueId).update("status", "dipinjam").await()
 
             val bookRef = booksCollection.document(book.id)

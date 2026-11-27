@@ -10,15 +10,21 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/surface"
-        app:elevation="2dp">
+        app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbarCategories"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="@drawable/ic_arrow_back"
+            app:navigationIconTint="@color/text_primary"
             app:title="Kelola Kategori Buku"
             app:titleTextColor="@color/text_primary" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/outline" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <FrameLayout
@@ -31,8 +37,9 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:padding="16dp"
-            android:paddingBottom="80dp"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="88dp"
             tools:listitem="@layout/item_category_manage" />
 
         <TextView
@@ -41,6 +48,8 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:gravity="center"
+            android:lineSpacingExtra="4dp"
+            android:padding="32dp"
             android:text="Belum ada kategori.\nKlik tombol + untuk menambah."
             android:textColor="@color/text_secondary"
             android:textSize="14sp"
@@ -56,6 +65,7 @@
         android:backgroundTint="@color/primary"
         android:contentDescription="Tambah Kategori"
         android:src="@drawable/ic_add"
-        app:tint="@color/white" />
+        app:elevation="4dp"
+        app:tint="@color/on_primary" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

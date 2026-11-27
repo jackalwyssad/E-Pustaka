@@ -10,15 +10,21 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/surface"
-        app:elevation="2dp">
+        app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbarAdmin"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="@drawable/ic_arrow_back"
+            app:navigationIconTint="@color/text_primary"
             app:title="Dashboard Pustakawan"
             app:titleTextColor="@color/text_primary" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/outline" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
@@ -31,8 +37,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp"
-            android:paddingBottom="80dp">
+            android:paddingHorizontal="16dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="96dp">
 
             <!-- 3 Stat Cards -->
             <LinearLayout
@@ -46,8 +53,8 @@
                     android:layout_marginEnd="6dp"
                     android:layout_weight="1"
                     app:cardBackgroundColor="@color/surface"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="1dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
                     app:strokeColor="@color/outline"
                     app:strokeWidth="1dp">
 
@@ -56,30 +63,41 @@
                         android:layout_height="wrap_content"
                         android:gravity="center"
                         android:orientation="vertical"
-                        android:padding="12dp">
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="14dp">
 
-                        <ImageView
-                            android:layout_width="22dp"
-                            android:layout_height="22dp"
-                            android:src="@drawable/ic_book"
-                            app:tint="@color/primary" />
+                        <FrameLayout
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:background="@drawable/bg_badge_primary">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_book"
+                                app:tint="@color/primary" />
+                        </FrameLayout>
 
                         <TextView
                             android:id="@+id/tvAdminTotalBooks"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
+                            android:layout_marginTop="8dp"
                             android:text="0"
-                            android:textColor="@color/primary"
-                            android:textSize="18sp"
+                            android:textColor="@color/text_primary"
+                            android:textSize="22sp"
                             android:textStyle="bold" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:ellipsize="end"
+                            android:maxLines="1"
                             android:text="Total Buku"
                             android:textColor="@color/text_secondary"
-                            android:textSize="10sp" />
+                            android:textSize="12sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -89,8 +107,8 @@
                     android:layout_marginHorizontal="3dp"
                     android:layout_weight="1"
                     app:cardBackgroundColor="@color/surface"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="1dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
                     app:strokeColor="@color/outline"
                     app:strokeWidth="1dp">
 
@@ -99,30 +117,42 @@
                         android:layout_height="wrap_content"
                         android:gravity="center"
                         android:orientation="vertical"
-                        android:padding="12dp">
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="14dp">
 
-                        <ImageView
-                            android:layout_width="22dp"
-                            android:layout_height="22dp"
-                            android:src="@drawable/ic_bookmark"
-                            app:tint="@color/secondary" />
+                        <FrameLayout
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:background="@drawable/bg_badge_primary"
+                            android:backgroundTint="@color/secondary_container">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_bookmark"
+                                app:tint="@color/secondary" />
+                        </FrameLayout>
 
                         <TextView
                             android:id="@+id/tvAdminTotalCategories"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
+                            android:layout_marginTop="8dp"
                             android:text="0"
-                            android:textColor="@color/secondary"
-                            android:textSize="18sp"
+                            android:textColor="@color/text_primary"
+                            android:textSize="22sp"
                             android:textStyle="bold" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:ellipsize="end"
+                            android:maxLines="1"
                             android:text="Kategori"
                             android:textColor="@color/text_secondary"
-                            android:textSize="10sp" />
+                            android:textSize="12sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -132,8 +162,8 @@
                     android:layout_marginStart="6dp"
                     android:layout_weight="1"
                     app:cardBackgroundColor="@color/surface"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="1dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
                     app:strokeColor="@color/outline"
                     app:strokeWidth="1dp">
 
@@ -142,79 +172,116 @@
                         android:layout_height="wrap_content"
                         android:gravity="center"
                         android:orientation="vertical"
-                        android:padding="12dp">
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="14dp">
 
-                        <ImageView
-                            android:layout_width="22dp"
-                            android:layout_height="22dp"
-                            android:src="@drawable/ic_person"
-                            app:tint="@color/primary" />
+                        <FrameLayout
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:background="@drawable/bg_badge_primary">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_person"
+                                app:tint="@color/primary" />
+                        </FrameLayout>
 
                         <TextView
                             android:id="@+id/tvAdminTotalUsers"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
+                            android:layout_marginTop="8dp"
                             android:text="0"
-                            android:textColor="@color/primary"
-                            android:textSize="18sp"
+                            android:textColor="@color/text_primary"
+                            android:textSize="22sp"
                             android:textStyle="bold" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:ellipsize="end"
+                            android:maxLines="1"
                             android:text="Anggota"
                             android:textColor="@color/text_secondary"
-                            android:textSize="10sp" />
+                            android:textSize="12sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
 
             <!-- Quick Action Buttons -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="Aksi Cepat"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="8dp"
                 android:orientation="horizontal">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnManageCategories"
                     style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="0dp"
-                    android:layout_height="46dp"
+                    android:layout_height="48dp"
                     android:layout_marginEnd="6dp"
                     android:layout_weight="1"
                     android:text="Kategori"
-                    android:textSize="12sp"
-                    app:cornerRadius="10dp" />
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp"
+                    app:backgroundTint="@color/surface"
+                    app:cornerRadius="12dp"
+                    app:icon="@drawable/ic_bookmark"
+                    app:iconSize="18dp"
+                    app:iconTint="@color/primary"
+                    app:strokeColor="@color/outline" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnManageUsers"
                     style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="0dp"
-                    android:layout_height="46dp"
+                    android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:layout_weight="1"
                     android:text="Daftar Anggota"
-                    android:textSize="12sp"
-                    app:cornerRadius="10dp" />
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp"
+                    app:backgroundTint="@color/surface"
+                    app:cornerRadius="12dp"
+                    app:icon="@drawable/ic_person"
+                    app:iconSize="18dp"
+                    app:iconTint="@color/primary"
+                    app:strokeColor="@color/outline" />
             </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSeedDummy"
                 style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_width="match_parent"
-                android:layout_height="46dp"
+                android:layout_height="48dp"
                 android:layout_marginTop="8dp"
                 android:text="Muat Data Contoh / Dummy ke Database"
-                android:textSize="12sp"
-                app:cornerRadius="10dp" />
+                android:textColor="@color/primary"
+                android:textSize="13sp"
+                app:backgroundTint="@color/surface_variant"
+                app:cornerRadius="12dp"
+                app:icon="@drawable/ic_add"
+                app:iconSize="18dp"
+                app:iconTint="@color/primary" />
 
             <!-- Book List Header -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="24dp"
                 android:text="Daftar Katalog Buku Perpustakaan"
                 android:textColor="@color/text_primary"
                 android:textSize="16sp"
@@ -224,7 +291,7 @@
                 android:id="@+id/rvAdminBooks"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="12dp"
                 android:nestedScrollingEnabled="false"
                 tools:listitem="@layout/item_admin_book" />
 
@@ -234,9 +301,11 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:gravity="center"
+                android:lineSpacingExtra="4dp"
+                android:padding="24dp"
                 android:text="Belum ada buku tersimpan.\nKlik tombol + di bawah atau muat data contoh."
                 android:textColor="@color/text_secondary"
-                android:textSize="13sp" />
+                android:textSize="14sp" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
@@ -249,8 +318,9 @@
         android:layout_margin="20dp"
         android:backgroundTint="@color/primary"
         android:text="Tambah Buku"
-        android:textColor="@color/white"
+        android:textColor="@color/on_primary"
+        app:elevation="4dp"
         app:icon="@drawable/ic_add"
-        app:iconTint="@color/white" />
+        app:iconTint="@color/on_primary" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
